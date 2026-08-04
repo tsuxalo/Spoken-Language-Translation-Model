@@ -1,0 +1,8 @@
+transformers>=4.30
+datasets
+torch
+torchaudio
+librosa
+evaluate
+jiwer
+accelerate
