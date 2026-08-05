@@ -7,7 +7,7 @@ import soundfile as sf
 import torch
 from transformers import WhisperForConditionalGeneration, WhisperProcessor
 
-MODEL_DIR = "./whisper-small-ha"
+MODEL_DIR = "nahomazmach/whisper-small-ha"  # Hugging Face Hub repo; use a local path (e.g. "./whisper-small-ha") instead if you trained your own copy
 SAMPLING_RATE = 16_000
 
 _device = "cuda" if torch.cuda.is_available() else "cpu"

@@ -33,3 +33,5 @@ Thumbs.db
 # Project-specific
 data/
 models/
+whisper-small-ha/
+_smoke_test_out/

@@ -45,25 +45,43 @@ This is where the actual learning happens: showing the model many examples of (a
 A few choices worth explaining:
 
 - **Batch size and gradient accumulation:** ideally, a model looks at many examples at once per learning step, since that gives a more stable sense of "which direction to adjust in." But more examples at once also means more GPU memory. Our GPU has a limited 8GB of memory, so we process only 2 clips at a time, but accumulate the learning signal over 4 of those small batches before actually updating the model — approximating a batch of 8 without needing the memory for 8 at once.
-- **Mixed precision (fp16):** normally, numbers inside the model are stored with high precision, using more memory and compute than usually necessary. We tell the training to use lower-precision numbers where it's safe to do so, which roughly halves memory use and speeds things up, with a negligible effect on the end result.
+- **Mixed precision (fp16):** normally numbers inside the model are stored with high precision, using more memory and compute than usually necessary. We tell the training to use lower-precision numbers where it's safe to do so, which roughly halves memory use and speeds things up, with a negligible effect on the end result.
 - **Measuring progress (Word Error Rate):** after each pass through the data, the model is asked to transcribe some clips it wasn't trained on, and we compare its output to the correct answer using **Word Error Rate (WER)** — essentially, what percentage of words were inserted, deleted, or substituted incorrectly. Lower is better. A WER of 0% would mean perfect transcription.
 
-We've verified this entire training setup actually runs correctly on our GPU (loading data, computing loss, updating the model, computing WER) using a very short trial run of a couple of steps on a handful of examples — enough to confirm nothing is broken, without committing to the time a full training run takes. Full training (multiple complete passes over all ~3,259 training clips) has not been run yet.
+Before committing to a full run, we first verified this setup with a short trial (a couple of steps on a handful of examples) to confirm nothing was broken, then ran full training: 3 complete passes over all ~3,259 training clips on the local GPU, taking about 4.3 hours. Training loss dropped steadily the whole way — from 13.7 at the start down to 0.86 by the end — and WER on the held-out test set improved with each pass: 50.5% after epoch 1, 45.0% after epoch 2, and **44.7%** after epoch 3. That means the fine-tuned model gets a bit under half the words right on speech it never saw during training, a solid result for 3 epochs on a comparatively small, low-resource-language dataset.
 
 ## Phase 5 — Trying the model out (`inference.py`)
 
 Once a model is trained, `inference.py` is the piece that makes it actually useful: give it a path to a `.wav` audio file, and it returns the transcribed Hausa text. It loads the fine-tuned model, converts the given audio into the same mel-spectrogram format used during training (so the model sees data in the format it expects), and asks the model to generate a text prediction.
 
-We validated this works correctly using the base, not-yet-fine-tuned Whisper model on a real Hausa clip. The output was recognizably in the right neighborhood phonetically but not accurate — which is expected, since that model hasn't been taught Hausa specifically yet. This test confirmed the mechanics (loading, audio conversion, generation, decoding back to text) all work; transcription quality itself will depend on completing Phase 4's full training run.
+We first validated the mechanics (loading, audio conversion, generation, decoding back to text) using the base, not-yet-fine-tuned Whisper model — its output was recognizably in the right neighborhood phonetically but not accurate, as expected for a model that hadn't seen Hausa yet. Now that training is complete, `inference.py` and the notebook load the actual fine-tuned model.
 
-The notebook's final section does a related but more visual version of this: it runs 5 examples from the held-out test set through the fine-tuned model and displays a table comparing the correct transcription, the model's prediction, and the WER score for each one — a quick, human-readable way to sanity-check quality.
+The fine-tuned model is published on the **Hugging Face Hub** at [nahomazmach/whisper-small-ha](https://huggingface.co/nahomazmach/whisper-small-ha), rather than only existing as a ~1GB folder on one laptop. That means anyone — a groupmate, the Colab notebook, a grader — can load it directly with `WhisperForConditionalGeneration.from_pretrained("nahomazmach/whisper-small-ha")` and get real transcriptions immediately, without needing to run any of the training themselves.
+
+The notebook's final section does a related but more visual version of this: it downloads the fine-tuned model from the Hub, runs 5 examples from the held-out test set through it, and displays a table comparing the correct transcription, the model's prediction, and the WER score for each one — a quick, human-readable way to see quality on real examples.
+
+## Results
+
+| Metric | Epoch 1 | Epoch 2 | Epoch 3 (final) |
+|---|---|---|---|
+| Eval WER | 50.5% | 45.0% | **44.7%** |
+| Eval loss | 0.750 | 0.702 | 0.712 |
+
+Trained model: [nahomazmach/whisper-small-ha](https://huggingface.co/nahomazmach/whisper-small-ha) on the Hugging Face Hub.
+
+**A concrete before/after**, on the same held-out test clip:
+
+- **Ground truth:** *An kwatanta faretin gine-ginen da ke yin sararin samaniyar Hong Kong da ginshiƙi mai walƙiya wanda aka bayyana ta gaban ruwan Victoria Harbor.*
+- **Base Whisper (untrained on Hausa):** *Aung kwa tanta ferietun ginaginang deke yung sarulin samania Hong Kong dekin shiki mei wal kiya wan da akabayenata gabung ruwan Victoria Habo.*
+- **Fine-tuned model:** *An kwatanta, feryatin gina-ginan da ke yin tsarin samaniya, Hong Kong, da ginshiki mai walƙiya wanda aka bayyana ta gaban ruwan Victoria Harbour.*
+
+The base model is barely phonetically related to the correct answer; the fine-tuned model gets nearly every word right. That gap is what the 3 epochs of training actually bought us.
 
 ## Where things stand right now
 
 - Environment, GPU/CUDA support, and all dependencies: set up and confirmed working.
-- Data pipeline: fully built and run — the processed training and test data already exist locally.
-- Training pipeline: fully built and confirmed to run correctly, but not yet run to completion. The model has not actually been fine-tuned on Hausa yet.
-- Inference pipeline: fully built and confirmed to work mechanically, using the untrained base model as a stand-in.
-- Notebook: mirrors all of the above, Colab-ready, with the sections for training and inference results built to display a clear "you need to train first" message if run before a fine-tuned model exists.
-
-The next step is running full training, after which the training-loss/WER charts and the 5-example results table in the notebook will actually have something to show.
+- Data pipeline: fully built and run — the processed training and test data exist locally.
+- Training pipeline: fully built, run to completion (3 epochs), and confirmed to actually improve the model — see Results above.
+- Inference pipeline: fully built and confirmed working against the real fine-tuned model, not just the base model.
+- Model: fine-tuned and published to the Hugging Face Hub, so it can be used without anyone retraining it locally.
+- Notebook: mirrors all of the above and is Colab-ready — Section 4 (training telemetry) and Section 5 (inference demo) both work out of the box using the published model and the real training log, with no local setup required.
