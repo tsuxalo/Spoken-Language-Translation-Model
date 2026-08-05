@@ -1,0 +1,59 @@
+[build-system]
+requires = ["setuptools>=70", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "low-resource-slt"
+version = "0.1.0"
+description = "Reproducible ASR and speech-translation baselines for low-resource languages."
+readme = "README.md"
+requires-python = ">=3.10,<3.13"
+license = { text = "Apache-2.0" }
+authors = [
+    { name = "Spoken Language Translation Capstone Team" }
+]
+
+dependencies = [
+    "numpy>=1.26",
+    "pandas>=2.2",
+    "PyYAML>=6.0",
+    "soundfile>=0.12",
+]
+
+[project.optional-dependencies]
+training = [
+    "torch",
+    "torchaudio",
+    "datasets",
+    "transformers",
+    "accelerate",
+    "evaluate",
+    "jiwer",
+    "sacrebleu",
+    "librosa",
+]
+
+notebooks = [
+    "jupyter>=1.0",
+    "ipykernel>=6.0",
+    "matplotlib>=3.8",
+]
+
+dev = [
+    "pytest>=8.0",
+    "ruff>=0.9",
+    "pre-commit>=4.0",
+]
+
+[tool.setuptools.packages.find]
+where = ["src"]
+
+[tool.ruff]
+line-length = 100
+target-version = "py311"
+extend-exclude = [
+    "notebooks/00_legacy_hausa_asr_demo.ipynb",
+]
+
+[tool.ruff.lint]
+select = ["E", "F", "I", "B", "UP"]
