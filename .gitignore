@@ -31,5 +31,56 @@ dist/
 Thumbs.db
 
 # Project-specific
-data/
-models/
+
+# Raw and processed datasets
+data/raw/
+data/processed/
+data/cache/
+data/downloads/
+
+# Generated manifests may be large
+data/manifests/**/*.jsonl
+!data/manifests/**/README.md
+
+# Model artifacts and checkpoints
+artifacts/
+checkpoints/
+outputs/
+whisper-small-ha/
+wandb/
+mlruns/
+
+*.pt
+*.pth
+*.ckpt
+*.bin
+*.safetensors
+
+# Generated predictions
+predictions/
+results/raw/
+
+# Keep final small metrics and figures
+!reports/
+!reports/figures/
+!reports/tables/
+
+# Local environment configuration
+.env
+.env.*
+!.env.example
+
+# Hugging Face cache
+.huggingface/
+hf_cache/
+
+# Python and notebooks
+__pycache__/
+*.py[cod]
+.ipynb_checkpoints/
+
+# Editors and operating systems
+.vscode/
+.idea/
+.DS_Store
+Thumbs.db
