@@ -35,3 +35,23 @@ data/
 models/
 whisper-small-ha/
 _smoke_test_out/
+
+# Research artifacts and heavyweight model/data caches
+artifacts/
+outputs/
+checkpoints/
+*.safetensors
+*.bin
+*.ckpt
+*.pt
+*.pth
+*.onnx
+*.parquet
+wandb/
+mlruns/
+
+# Test and tooling caches
+.pytest_cache/
+.ruff_cache/
+coverage.xml
+.coverage

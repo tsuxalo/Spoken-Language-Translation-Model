@@ -1,12 +1,15 @@
-transformers>=4.30
-datasets
-# CUDA build for NVIDIA GPUs (Blackwell/RTX 50-series needs CUDA 12.8+); drop --extra-index-url for CPU-only
---extra-index-url https://download.pytorch.org/whl/cu130
-torch==2.13.0+cu130
-torchaudio==2.11.0+cu130
-librosa
-evaluate
-jiwer
-accelerate
-matplotlib
-ipykernel
+# Install the appropriate PyTorch build for your platform first; see README.md.
+torch>=2.4
+transformers>=5.0,<6
+datasets>=4.0,<5
+accelerate>=1.0
+peft>=0.20
+numpy>=1.26
+scipy>=1.12
+soundfile>=0.12
+PyYAML>=6.0
+sacrebleu>=2.4
+sentencepiece>=0.2
+librosa>=0.10
+pandas>=2.0
+matplotlib>=3.8

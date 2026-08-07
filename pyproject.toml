@@ -1,0 +1,38 @@
+[build-system]
+requires = ["setuptools>=69", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "hausa-s2tt"
+version = "0.2.0"
+description = "Reproducible Hausa-to-English speech translation research pipelines"
+readme = "README.md"
+requires-python = ">=3.10"
+license = {text = "Apache-2.0"}
+dynamic = ["dependencies"]
+
+[project.scripts]
+hausa-s2tt-data = "hausa_s2tt.cli:data_main"
+hausa-s2tt-train = "hausa_s2tt.cli:train_main"
+hausa-s2tt-infer = "hausa_s2tt.cli:inference_main"
+hausa-s2tt-evaluate-asr = "hausa_s2tt.cli:evaluate_asr_main"
+hausa-s2tt-evaluate = "hausa_s2tt.cli:evaluate_s2tt_main"
+hausa-s2tt-estimate = "hausa_s2tt.cli:estimate_main"
+hausa-s2tt-smoke-train = "hausa_s2tt.cli:smoke_train_main"
+
+[tool.setuptools]
+package-dir = {"" = "src"}
+
+[tool.setuptools.dynamic]
+dependencies = {file = ["requirements.txt"]}
+
+[tool.setuptools.packages.find]
+where = ["src"]
+
+[tool.pytest.ini_options]
+addopts = "-q"
+testpaths = ["tests"]
+markers = [
+  "integration: downloads public datasets or model checkpoints",
+  "slow: requires more than a CPU-safe unit test",
+]

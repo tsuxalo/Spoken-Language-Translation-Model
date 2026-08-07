@@ -1,0 +1,36 @@
+kind: asr
+dataset:
+  id: google/fleurs
+  revision: 70bb2e84b976b7e960aa89f1c648e09c59f894dd
+  config_name: ha_ng
+  train_split: train
+  validation_split: validation
+  test_split: test
+  target_column: raw_transcription
+  sampling_rate: 16000
+model:
+  id: nahomazmach/whisper-small-ha
+  revision: c4e2b47d88ae8b3ee0a605e09863b93aafca72e3
+  language: Hausa
+  task: transcribe
+  efficiency_strategy: lora
+  lora_r: 16
+  lora_alpha: 32
+  lora_dropout: 0.05
+  lora_targets: [q_proj, v_proj]
+training:
+  output_dir: artifacts/checkpoints/whisper-small-ha-asr-lora
+  seed: 42
+  learning_rate: 0.0001
+  train_batch_size: 2
+  eval_batch_size: 2
+  gradient_accumulation_steps: 4
+  num_train_epochs: 5
+  warmup_ratio: 0.05
+  gradient_checkpointing: true
+  eval_strategy: epoch
+  save_strategy: epoch
+  early_stopping_patience: 2
+  precision: auto
+tracking:
+  run_name: whisper-small-ha-asr-lora

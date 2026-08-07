@@ -1,0 +1,2 @@
+# Optional: COMET is not required for the reproducible core evaluation.
+unbabel-comet>=2.2

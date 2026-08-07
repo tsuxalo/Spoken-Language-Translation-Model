@@ -1,0 +1,40 @@
+kind: direct_s2tt
+dataset:
+  id: McGill-NLP/NaijaS2ST
+  revision: 898f51582750fe244693794f22e3f4b32c5baf95
+  config_name: default
+  train_split: train
+  validation_split: derived_from_train
+  test_split: dev
+  target_column: target_text
+  source_language: hausa
+  target_language: english
+  sampling_rate: 16000
+  max_duration_seconds: 30.0
+  derive_validation_from_train: true
+  validation_fraction: 0.1
+  max_train_samples: 16
+  max_validation_samples: 8
+model:
+  id: openai/whisper-tiny
+  revision: 169d4a4341b33bc18d8881c4b69c2e104e1cc0af
+  language: Hausa
+  task: translate
+  efficiency_strategy: freeze_encoder
+training:
+  output_dir: artifacts/checkpoints/direct-s2tt-smoke
+  seed: 42
+  learning_rate: 0.00001
+  train_batch_size: 1
+  eval_batch_size: 1
+  gradient_accumulation_steps: 1
+  num_train_epochs: 1
+  max_steps: 3
+  warmup_ratio: 0.0
+  gradient_checkpointing: false
+  eval_strategy: epoch
+  save_strategy: epoch
+  early_stopping_patience: null
+  precision: fp32
+tracking:
+  run_name: direct-s2tt-smoke

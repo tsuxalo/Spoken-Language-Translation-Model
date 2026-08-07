@@ -1,0 +1,33 @@
+kind: asr
+dataset:
+  id: google/fleurs
+  revision: 70bb2e84b976b7e960aa89f1c648e09c59f894dd
+  config_name: ha_ng
+  train_split: train
+  validation_split: validation
+  test_split: test
+  target_column: raw_transcription
+  sampling_rate: 16000
+  max_duration_seconds: 30.0
+model:
+  id: openai/whisper-small
+  revision: 973afd24965f72e36ca33b3055d56a652f456b4d
+  language: Hausa
+  task: transcribe
+  efficiency_strategy: full
+training:
+  output_dir: artifacts/checkpoints/asr-baseline-corrected
+  seed: 42
+  learning_rate: 0.00001
+  train_batch_size: 2
+  eval_batch_size: 2
+  gradient_accumulation_steps: 4
+  num_train_epochs: 3
+  warmup_ratio: 0.05
+  gradient_checkpointing: false
+  eval_strategy: epoch
+  save_strategy: epoch
+  early_stopping_patience: null
+  precision: auto
+tracking:
+  run_name: asr-baseline-corrected

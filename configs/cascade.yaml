@@ -1,0 +1,23 @@
+kind: cascade
+dataset:
+  id: McGill-NLP/NaijaS2ST
+  revision: 898f51582750fe244693794f22e3f4b32c5baf95
+  config_name: default
+  test_split: dev
+  source_language: hausa
+  target_language: english
+model:
+  id: nahomazmach/whisper-small-ha
+  revision: c4e2b47d88ae8b3ee0a605e09863b93aafca72e3
+  language: Hausa
+  task: transcribe
+mt:
+  id: facebook/nllb-200-distilled-600M
+  revision: f8d333a098d19b4fd9a8b18f94170487ad3f821d
+  source_language: hau_Latn
+  target_language: eng_Latn
+  batch_size: 8
+  max_new_tokens: 256
+  num_beams: 4
+tracking:
+  run_name: whisper-ha-nllb-cascade
