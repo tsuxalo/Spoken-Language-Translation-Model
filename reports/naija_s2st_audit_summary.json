@@ -1,0 +1,52 @@
+{
+  "status": "measured",
+  "audit_date": "2026-08-07",
+  "dataset": "McGill-NLP/NaijaS2ST",
+  "dataset_revision": "898f51582750fe244693794f22e3f4b32c5baf95",
+  "parquet_conversion_revision": "fc2d78277d86da24ba1ab5ca55568f39c13cd825",
+  "metadata_source": "Parquet HTTP range reads excluding audio bytes",
+  "audio_decode_validation": "not performed",
+  "train": {
+    "total_rows": 52000,
+    "hausa_rows": 15000,
+    "english_rows": 8000,
+    "accepted_pairs": 13871,
+    "hausa_speakers": 60,
+    "accepted_audio_hours": 48.39099722222222,
+    "duration_min_seconds": 1.13,
+    "duration_median_seconds": 11.67,
+    "duration_max_seconds": 29.95,
+    "rejected_hausa_rows": 1129,
+    "rejection_reasons": {
+      "duration_over_limit": 395,
+      "missing_english_target": 734
+    },
+    "unique_missing_target_keys": 249,
+    "conflicting_target_keys": 0,
+    "duplicate_source_records": 0,
+    "invalid_target_records": 0
+  },
+  "dev": {
+    "total_rows": 5500,
+    "hausa_rows": 1500,
+    "english_rows": 1000,
+    "accepted_pairs": 1500,
+    "hausa_speakers": 6,
+    "accepted_audio_hours": 3.888472222222222,
+    "duration_min_seconds": 1.05,
+    "duration_median_seconds": 8.68,
+    "duration_max_seconds": 28.65,
+    "rejected_hausa_rows": 0,
+    "conflicting_target_keys": 0,
+    "duplicate_source_records": 0,
+    "invalid_target_records": 0
+  },
+  "train_dev_speaker_overlap": 0,
+  "speaker_disjoint": true,
+  "derived_seed_42_split": {
+    "training": {"pairs": 12385, "speakers": 53, "audio_hours": 43.12841111111111},
+    "validation": {"pairs": 1486, "speakers": 7, "audio_hours": 5.262586111111111},
+    "speaker_overlap": 0
+  },
+  "full_audit_wall_seconds": 199.0282603
+}

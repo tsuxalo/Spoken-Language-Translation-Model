@@ -1,35 +1,57 @@
-# Hausa Speech-to-Text Pipeline: Master Execution Plan
+# Hausa→English S2TT execution plan
 
-Agent, we are building an end-to-end Hausa ASR transformer using an "on the go" workflow. You will write the modular Python scripts while simultaneously building a Jupyter Notebook (`capstone_demo.ipynb`) to test and visualize each phase.
+This plan reflects the implemented project rather than the superseded ASR-only prototype.
 
-## Phase 1: Environment Correction
-Execute the following terminal commands to ensure PyTorch is using CUDA for the local RTX 5050 GPU:
-1. `pip uninstall torch torchaudio -y`
-2. `pip install torch torchaudio --index-url https://download.pytorch.org/whl/cu121`
+## Experimental contract
 
-## Phase 2: Create the Colab-Ready Capstone Notebook
-Generate a Jupyter Notebook named `capstone_demo.ipynb` in the root folder. 
+| Phase | System | Training labels | Selection data | Final data | State |
+|---|---|---|---|---|---|
+| 1 | Whisper Hausa ASR | Hausa transcripts | FLEURS validation | FLEURS test | Pipeline complete; full v2 run pending |
+| 2 | Zero-shot Whisper | None | None | NaijaS2ST dev | Smoke complete; final comparison pending |
+| 3 | Hausa ASR → NLLB | ASR/MT checkpoints | NaijaS2ST train-derived validation if tuned | NaijaS2ST dev | Smoke complete; final comparison pending |
+| 4 | Direct Whisper S2TT | Aligned English `target_text` | Speaker-held-out subset of NaijaS2ST train | NaijaS2ST dev | Three-step smoke complete; full run pending |
 
-**Notebook Requirements:**
-*   **Markdown Header:** The very first cell must be Markdown and contain this exact badge code (I will update USERNAME later):
-    `[![Open In Colab](https://colab.research.google.com/assets/colab-badge.svg)](https://colab.research.google.com/github/USERNAME/hausa-asr-transformer/blob/main/capstone_demo.ipynb)`
-*   **Cell 1 (Colab Setup):** The first code cell must be:
-    ```python
-    # Run this cell if executing in Google Colab to install dependencies
-    import sys
-    if 'google.colab' in sys.modules:
-        !pip install transformers datasets torch torchaudio librosa evaluate jiwer accelerate
-    ```
-*   **Structure:** Add placeholder Markdown sections for: "1. Architecture Overview", "2. Audio Exploratory Data Analysis", "3. Data Pipeline Verification", "4. Training Telemetry", and "5. Interactive Inference."
+NaijaS2ST dev remains sealed until all system choices are frozen. A metadata audit may verify pairing and leakage, but no dev prediction or metric is used for model selection. FLEURS test is likewise excluded from Trainer construction.
 
-## Phase 3: Data Ingestion (`data_prep.py` & Notebook Sec 2)
-1.  **Write `data_prep.py`:** Use `datasets` to load `mozilla-foundation/common_voice_11_0` (Hausa split: `ha`). Cast audio to 16kHz, initialize `openai/whisper-small` processor, and map the dataset to extract log-mel spectrograms. Save processed data to `./data`.
-2.  **Update Notebook Section 2:** Write code in the notebook to load 3 raw Hausa audio clips. Use `IPython.display.Audio` to make them playable, and use `librosa` and `matplotlib` to plot their Waveforms and Mel-Spectrograms side-by-side.
+## Completed engineering
 
-## Phase 4: Training Setup (`train.py` & Notebook Sec 4)
-1.  **Write `train.py`:** Initialize `WhisperForConditionalGeneration` (`openai/whisper-small`). Set `per_device_train_batch_size=2` and `gradient_accumulation_steps=4` (optimized for an 8GB VRAM RTX 5050). Configure the `Seq2SeqTrainer` using `jiwer` to calculate Word Error Rate (WER).
-2.  **Update Notebook Section 4:** Write a cell in the notebook that parses the training logs (once generated) and uses `seaborn` or `matplotlib` to plot Training Loss and WER over time.
+- Strict YAML configuration and pinned dataset/model revisions.
+- Deterministic seeds, hardware-aware precision, gradient checkpointing, encoder freezing, partial freezing, and LoRA.
+- Memory-safe NaijaS2ST Hausa-audio/English-text pairing with explicit rejection reasons.
+- Official FLEURS split loading and raw/normalized WER/CER.
+- Separate ASR, zero-shot direct, fine-tuned direct, and ASR→NLLB cascade runtimes.
+- Long-audio chunking, stereo-to-mono conversion, polyphase resampling, invalid-audio checks, and batched chunk generation.
+- Guarded final evaluation with row-level predictions and metric/provenance artifacts.
+- Runtime, throughput, RTF, GPU-hours, peak VRAM, parameter-count, and checkpoint-size telemetry.
+- Editable installation, console commands, CPU tests, real-checkpoint inference smoke, and three-step Trainer smoke.
 
-## Phase 5: Inference (`inference.py` & Notebook Sec 5)
-1.  **Write `inference.py`:** Write a function that takes a raw Hausa `.wav` file, runs it through the fine-tuned model, and returns the transcribed text.
-2.  **Update Notebook Section 5:** Write a cell to run 5 test samples through the model. Output a Pandas DataFrame displaying: `[Sample ID | Ground Truth Hausa | Model Output | WER Score]`.
+## Remaining experiments
+
+1. Run a 16–64 example hardware-matched direct-S2TT pilot for both base-Whisper and ASR-initialized LoRA variants.
+2. Record wall time, storage, peak VRAM, and validation chrF++; compare against the estimator.
+3. Authorize and run the selected full configuration only if the pilot stays within the agreed time/storage/cost budget.
+4. Freeze the winning direct checkpoint and all generation settings.
+5. Run ASR test and common NaijaS2ST dev comparisons once, using unique guarded run names.
+6. Populate the comparison report and model cards only from saved artifacts.
+7. Conduct optional blinded human evaluation with fluent Hausa/English reviewers.
+
+## Exact commands
+
+```bash
+hausa-s2tt-data naija --source parquet --workers 4 --output-dir artifacts/audits/naija_s2st
+hausa-s2tt-smoke-train --output-dir artifacts/smoke
+hausa-s2tt-train --config configs/direct_s2tt_smoke.yaml
+hausa-s2tt-train --config configs/direct_s2tt_full.yaml
+hausa-s2tt-train --config configs/direct_s2tt_from_asr.yaml
+```
+
+The configured dataset smoke still downloads NaijaS2ST audio; the `hausa-s2tt-smoke-train` command is the lightweight API check. Any job expected to exceed 30 minutes, 20 GB, or incur cost requires a representative pilot and authorization first.
+
+## Success criteria
+
+- No ASR checkpoint is described as a translation model.
+- Direct training labels are verified English references.
+- Train/validation/final partitions follow the experimental contract.
+- Full held-out metrics, if run, map to predictions and provenance artifacts.
+- Reported values distinguish measured, projected, historical, and unmeasured fields.
+- Checkpoints and large data remain ignored and are never published without explicit authorization.

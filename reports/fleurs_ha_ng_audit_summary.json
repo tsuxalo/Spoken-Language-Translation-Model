@@ -1,0 +1,19 @@
+{
+  "status": "measured",
+  "audit_date": "2026-08-07",
+  "dataset": "google/fleurs",
+  "config": "ha_ng",
+  "dataset_revision": "70bb2e84b976b7e960aa89f1c648e09c59f894dd",
+  "test_transcripts_read": false,
+  "speaker_id_field_available": false,
+  "speaker_disjoint_measured": false,
+  "speaker_policy": "FLEURS documentation states train/development and test speakers are disjoint",
+  "splits": {
+    "train": {"rows": 3259, "audio_hours": 13.618133333333333},
+    "validation": {"rows": 296, "audio_hours": 1.5296},
+    "test": {"rows": 621, "audio_hours": 3.3399833333333335}
+  },
+  "missing_audio_paths": 0,
+  "invalid_num_samples": 0,
+  "cross_split_audio_path_overlap": 0
+}

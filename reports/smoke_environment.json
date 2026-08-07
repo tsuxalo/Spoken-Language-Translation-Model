@@ -1,0 +1,32 @@
+{
+  "status": "measured",
+  "date": "2026-08-07",
+  "hardware": {
+    "platform": "Windows-11-10.0.26200-SP0",
+    "python": "3.12.13",
+    "processor": "Intel64 Family 6 Model 204 Stepping 2, GenuineIntel",
+    "logical_cpu_count": 16,
+    "torch_version": "2.13.0+cpu",
+    "cuda_available": false,
+    "mps_available": false
+  },
+  "precision": {
+    "device": "cpu",
+    "dtype": "float32",
+    "reason": "CPU/MPS FP32 fallback"
+  },
+  "packages": {
+    "transformers": "5.14.1",
+    "datasets": "4.8.5",
+    "accelerate": "1.14.0",
+    "peft": "0.20.0",
+    "numpy": "2.4.6",
+    "scipy": "1.18.0",
+    "soundfile": "0.14.0",
+    "sacrebleu": "2.6.0",
+    "sentencepiece": "0.2.2",
+    "nbformat": "5.11.0",
+    "pytest": "9.1.1",
+    "ruff": "0.16.2"
+  }
+}
