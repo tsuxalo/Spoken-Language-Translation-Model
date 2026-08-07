@@ -24,6 +24,7 @@ NaijaS2ST dev remains sealed until all system choices are frozen. A metadata aud
 - Guarded final evaluation with row-level predictions and metric/provenance artifacts.
 - Runtime, throughput, RTF, GPU-hours, peak VRAM, parameter-count, and checkpoint-size telemetry.
 - Editable installation, console commands, CPU tests, real-checkpoint inference smoke, and three-step Trainer smoke.
+- Revision-pinned library defaults, a replayable notebook validator, and a portable checksummed smoke summary.
 
 ## Remaining experiments
 

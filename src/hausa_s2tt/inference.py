@@ -12,6 +12,12 @@ import numpy as np
 
 from .audio import iter_audio_chunks, load_audio
 from .hardware import select_precision
+from .revisions import (
+    HAUSA_ASR_ID,
+    HAUSA_ASR_REVISION,
+    WHISPER_SMALL_ID,
+    WHISPER_SMALL_REVISION,
+)
 
 
 @dataclass
@@ -188,7 +194,9 @@ class WhisperRuntime:
         return [self.process(item) for item in audio_items]
 
 
-def create_asr_runtime(model_id: str = "nahomazmach/whisper-small-ha", **kwargs: Any) -> WhisperRuntime:
+def create_asr_runtime(model_id: str = HAUSA_ASR_ID, **kwargs: Any) -> WhisperRuntime:
+    if model_id == HAUSA_ASR_ID and kwargs.get("revision") is None:
+        kwargs["revision"] = HAUSA_ASR_REVISION
     return WhisperRuntime(model_id, task="transcribe", **kwargs)
 
 
@@ -196,5 +204,7 @@ def create_direct_runtime(model_id: str, **kwargs: Any) -> WhisperRuntime:
     return WhisperRuntime(model_id, task="translate", **kwargs)
 
 
-def create_zero_shot_runtime(model_id: str = "openai/whisper-small", **kwargs: Any) -> WhisperRuntime:
+def create_zero_shot_runtime(model_id: str = WHISPER_SMALL_ID, **kwargs: Any) -> WhisperRuntime:
+    if model_id == WHISPER_SMALL_ID and kwargs.get("revision") is None:
+        kwargs["revision"] = WHISPER_SMALL_REVISION
     return WhisperRuntime(model_id, task="translate", **kwargs)

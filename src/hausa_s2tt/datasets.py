@@ -16,8 +16,12 @@ from dataclasses import asdict, dataclass, field
 from pathlib import Path
 from typing import Any
 
-NAIJA_DATASET_ID = "McGill-NLP/NaijaS2ST"
-FLEURS_DATASET_ID = "google/fleurs"
+from .revisions import (
+    FLEURS_DATASET_ID,
+    FLEURS_REVISION,
+    NAIJA_DATASET_ID,
+    NAIJA_REVISION,
+)
 
 
 @dataclass
@@ -308,7 +312,7 @@ def split_by_speaker(
 
 def load_fleurs_splits(
     *,
-    revision: str | None = None,
+    revision: str | None = FLEURS_REVISION,
     decode_audio: bool = False,
     sampling_rate: int = 16_000,
     splits: Sequence[str] | None = None,
@@ -340,7 +344,7 @@ def load_fleurs_splits(
 def load_naija_split(
     split: str,
     *,
-    revision: str | None = None,
+    revision: str | None = NAIJA_REVISION,
     sampling_rate: int = 16_000,
 ) -> Any:
     try:

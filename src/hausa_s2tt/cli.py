@@ -8,11 +8,19 @@ import time
 from pathlib import Path
 from typing import Any
 
-FLEURS_REVISION = "70bb2e84b976b7e960aa89f1c648e09c59f894dd"
-NAIJA_REVISION = "898f51582750fe244693794f22e3f4b32c5baf95"
-WHISPER_SMALL_REVISION = "973afd24965f72e36ca33b3055d56a652f456b4d"
-HAUSA_ASR_REVISION = "c4e2b47d88ae8b3ee0a605e09863b93aafca72e3"
-NLLB_REVISION = "f8d333a098d19b4fd9a8b18f94170487ad3f821d"
+from .revisions import (
+    FLEURS_DATASET_ID,
+    FLEURS_REVISION,
+    HAUSA_ASR_ID,
+    HAUSA_ASR_REVISION,
+    NAIJA_REVISION,
+    NLLB_MODEL_ID,
+    NLLB_REVISION,
+    WHISPER_SMALL_ID,
+    WHISPER_SMALL_REVISION,
+    WHISPER_TINY_ID,
+    WHISPER_TINY_REVISION,
+)
 
 
 def data_main(argv: list[str] | None = None) -> None:
@@ -51,7 +59,7 @@ def data_main(argv: list[str] | None = None) -> None:
             dataset[split].save_to_disk(str(args.output_dir / split))
             counts[split] = len(dataset[split])
         result: dict[str, Any] = {
-            "dataset": "google/fleurs",
+            "dataset": FLEURS_DATASET_ID,
             "config": "ha_ng",
             "revision": args.revision,
             "splits": counts,
@@ -137,9 +145,9 @@ def inference_main(argv: list[str] | None = None) -> None:
     )
     parser.add_argument("--model-id")
     parser.add_argument("--model-revision")
-    parser.add_argument("--asr-model-id", default="nahomazmach/whisper-small-ha")
+    parser.add_argument("--asr-model-id", default=HAUSA_ASR_ID)
     parser.add_argument("--asr-model-revision")
-    parser.add_argument("--mt-model-id", default="facebook/nllb-200-distilled-600M")
+    parser.add_argument("--mt-model-id", default=NLLB_MODEL_ID)
     parser.add_argument("--mt-model-revision")
     parser.add_argument(
         "--precision", choices=["auto", "bf16", "fp16", "fp32"], default="auto"
@@ -160,7 +168,7 @@ def inference_main(argv: list[str] | None = None) -> None:
         if args.model_id is None:
             revision = HAUSA_ASR_REVISION
         runtime = create_asr_runtime(
-            args.model_id or "nahomazmach/whisper-small-ha",
+            args.model_id or HAUSA_ASR_ID,
             revision=revision,
             **common,
         )
@@ -173,7 +181,7 @@ def inference_main(argv: list[str] | None = None) -> None:
         if args.model_id is None:
             revision = WHISPER_SMALL_REVISION
         runtime = create_zero_shot_runtime(
-            args.model_id or "openai/whisper-small",
+            args.model_id or WHISPER_SMALL_ID,
             revision=revision,
             **common,
         )
@@ -193,10 +201,10 @@ def inference_main(argv: list[str] | None = None) -> None:
         ]
     else:
         asr_revision = args.asr_model_revision
-        if args.asr_model_id == "nahomazmach/whisper-small-ha" and not asr_revision:
+        if args.asr_model_id == HAUSA_ASR_ID and not asr_revision:
             asr_revision = HAUSA_ASR_REVISION
         mt_revision = args.mt_model_revision
-        if args.mt_model_id == "facebook/nllb-200-distilled-600M" and not mt_revision:
+        if args.mt_model_id == NLLB_MODEL_ID and not mt_revision:
             mt_revision = NLLB_REVISION
         cascade = CascadeTranslator(
             asr=create_asr_runtime(
@@ -301,11 +309,11 @@ def evaluate_s2tt_main(argv: list[str] | None = None) -> None:
     )
     parser.add_argument("--direct-model-id")
     parser.add_argument("--direct-model-revision")
-    parser.add_argument("--zero-shot-model-id", default="openai/whisper-small")
+    parser.add_argument("--zero-shot-model-id", default=WHISPER_SMALL_ID)
     parser.add_argument("--zero-shot-model-revision", default=WHISPER_SMALL_REVISION)
-    parser.add_argument("--asr-model-id", default="nahomazmach/whisper-small-ha")
+    parser.add_argument("--asr-model-id", default=HAUSA_ASR_ID)
     parser.add_argument("--asr-model-revision", default=HAUSA_ASR_REVISION)
-    parser.add_argument("--mt-model-id", default="facebook/nllb-200-distilled-600M")
+    parser.add_argument("--mt-model-id", default=NLLB_MODEL_ID)
     parser.add_argument("--mt-model-revision", default=NLLB_REVISION)
     parser.add_argument("--dataset-revision", default=NAIJA_REVISION)
     parser.add_argument("--run-name", required=True)
@@ -444,9 +452,9 @@ def smoke_train_main(argv: list[str] | None = None) -> None:
     from .training import SpeechSeq2SeqCollator
 
     parser = argparse.ArgumentParser(description="Run a three-step Whisper training smoke")
-    parser.add_argument("--model-id", default="openai/whisper-tiny")
+    parser.add_argument("--model-id", default=WHISPER_TINY_ID)
     parser.add_argument(
-        "--revision", default="169d4a4341b33bc18d8881c4b69c2e104e1cc0af"
+        "--revision", default=WHISPER_TINY_REVISION
     )
     parser.add_argument("--output-dir", type=Path, default=Path("artifacts/smoke"))
     parser.add_argument("--seed", type=int, default=42)

@@ -6,8 +6,8 @@ from collections.abc import Iterable
 from typing import Any
 
 from .hardware import select_precision
+from .revisions import NLLB_MODEL_ID, NLLB_REVISION
 
-NLLB_MODEL_ID = "facebook/nllb-200-distilled-600M"
 HAUSA_CODE = "hau_Latn"
 ENGLISH_CODE = "eng_Latn"
 
@@ -25,7 +25,9 @@ class NLLBTranslator:
         num_beams: int = 4,
     ) -> None:
         self.model_id = model_id
-        self.revision = revision
+        self.revision = (
+            NLLB_REVISION if model_id == NLLB_MODEL_ID and revision is None else revision
+        )
         self.source_language = source_language
         self.target_language = target_language
         self.precision = precision

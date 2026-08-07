@@ -1,3 +1,4 @@
+# Reference manifest; CLI inference/evaluation receive these pinned values directly.
 kind: cascade
 dataset:
   id: McGill-NLP/NaijaS2ST

@@ -58,6 +58,22 @@ class FakeModel:
 
 
 class ConfigHardwareTests(unittest.TestCase):
+    def test_scientifically_invalid_task_combinations_are_rejected(self):
+        with self.assertRaisesRegex(ValueError, "ASR experiments must use"):
+            experiment_from_dict({"kind": "asr", "model": {"task": "translate"}})
+        with self.assertRaisesRegex(ValueError, "genuine aligned English"):
+            experiment_from_dict(
+                {
+                    "kind": "direct_s2tt",
+                    "dataset": {
+                        "target_language": "english",
+                        "target_column": "raw_transcription",
+                        "derive_validation_from_train": True,
+                    },
+                    "model": {"task": "translate"},
+                }
+            )
+
     def test_json_configuration_loading(self):
         with tempfile.TemporaryDirectory() as directory:
             path = Path(directory) / "config.json"

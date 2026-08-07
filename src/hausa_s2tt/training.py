@@ -151,6 +151,36 @@ def _select(dataset: Any, maximum: int | None) -> Any:
     return dataset.select(range(min(maximum, len(dataset))))
 
 
+def summarize_training_workload(
+    dataset_examples: int,
+    dataset_audio_seconds: float,
+    completed_epoch_equivalents: float,
+) -> dict[str, Any]:
+    """Describe the workload represented by a completed Trainer run.
+
+    Complete epochs have exact example/audio totals. For a partial epoch, the
+    example count follows Trainer's fractional epoch progress and audio duration
+    is explicitly marked as an estimate because clips have unequal durations.
+    """
+    if dataset_examples < 0 or dataset_audio_seconds < 0:
+        raise ValueError("Dataset workload totals must be non-negative")
+    if completed_epoch_equivalents < 0:
+        raise ValueError("Completed epoch equivalents must be non-negative")
+    examples = round(dataset_examples * completed_epoch_equivalents)
+    audio_seconds = dataset_audio_seconds * completed_epoch_equivalents
+    partial_epoch = not completed_epoch_equivalents.is_integer()
+    return {
+        "examples": examples,
+        "audio_seconds": audio_seconds,
+        "completed_epoch_equivalents": completed_epoch_equivalents,
+        "partial_epoch_audio_estimated": partial_epoch,
+        "basis": (
+            "dataset totals multiplied by Trainer state.epoch; partial-epoch "
+            "audio duration is proportional rather than clip-exact"
+        ),
+    }
+
+
 def load_training_data(config: ExperimentConfig) -> tuple[Any, Any, str, dict[str, Any]]:
     if config.kind == "asr":
         splits = load_fleurs_splits(
@@ -297,12 +327,18 @@ def train_experiment(config: ExperimentConfig) -> dict[str, Any]:
         result = trainer.train(resume_from_checkpoint=config.training.resume_from_checkpoint)
     trainer.save_model(str(output_dir))
     processor.save_pretrained(str(output_dir))
-    runtime = timer.measurement(len(train_dataset), audio_seconds)
+    completed_epochs = float(trainer.state.epoch or result.metrics.get("epoch", 0.0))
+    workload = summarize_training_workload(
+        len(train_dataset), audio_seconds, completed_epochs
+    )
+    runtime = timer.measurement(workload["examples"], workload["audio_seconds"])
+    runtime_payload = runtime.to_dict()
+    runtime_payload["workload_basis"] = workload
     final = {
         "train_metrics": result.metrics,
         "best_checkpoint": trainer.state.best_model_checkpoint,
         "best_metric": trainer.state.best_metric,
-        "runtime": runtime.to_dict(),
+        "runtime": runtime_payload,
         "checkpoint_size_bytes": directory_size_bytes(output_dir),
         "parameters": parameter_counts(model),
         "test_evaluated": False,

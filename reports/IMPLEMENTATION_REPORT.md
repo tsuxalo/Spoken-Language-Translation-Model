@@ -32,10 +32,10 @@ The full audio corpus was not decoded. Missing paths, invalid durations, long cl
 
 ## Reproducibility and efficiency
 
-- Configs pin all used dataset and model revisions.
+- Configs pin all used dataset and model revisions; default public runtime factories also resolve immutable revisions.
 - Python, NumPy, and PyTorch seeds are set; cuDNN deterministic mode is enabled.
 - Run manifests capture Git SHA, hardware, configuration, dependency versions, data counts/audits, and parameter counts.
-- Training summaries capture best validation checkpoint/metric, wall time, throughput, RTF, GPU-hours, peak allocated VRAM, and checkpoint size when a real run occurs.
+- Training summaries capture best validation checkpoint/metric, wall time, throughput, RTF, GPU-hours, peak allocated VRAM, and checkpoint size when a real run occurs. Workload totals use completed Trainer epoch-equivalents; partial-epoch audio duration is explicitly marked proportional/estimated.
 - Precision selection is BF16 on compatible CUDA, FP16 on other CUDA, and FP32 otherwise. Explicit unsupported BF16/FP16 requests fail.
 - Full, encoder-freeze, partial-freeze, and LoRA paths are configurable.
 
@@ -48,7 +48,7 @@ The full audio corpus was not decoded. Missing paths, invalid durations, long cl
 - Zero-shot and exact published-checkpoint cascade inference passed on a genuine NaijaS2ST Hausa recording and emitted English.
 - The tiny one-step estimator validation had 160.13% error because fixed overhead dominates; it is unsuitable as a full-job estimate.
 
-See [EXPERIMENT_COMPARISON.md](EXPERIMENT_COMPARISON.md) for exact smoke outputs and honest unmeasured fields.
+See [EXPERIMENT_COMPARISON.md](EXPERIMENT_COMPARISON.md) for exact smoke outputs and honest unmeasured fields. [smoke_results.json](smoke_results.json) is the portable canonical smoke record with local-artifact checksums and cold-cache context.
 
 ## Verification commands
 
@@ -62,7 +62,7 @@ python -m pip install -e . --no-deps
 python -m pytest -q
 $env:RUN_MODEL_SMOKE='1'; python -m pytest -q tests/test_model_smoke.py
 ruff check .
-python -m nbformat --validate capstone_demo.ipynb
+python scripts/validate_notebook.py capstone_demo.ipynb
 hausa-s2tt-data --help
 hausa-s2tt-train --help
 hausa-s2tt-infer --help
@@ -76,7 +76,7 @@ Credential, absolute-path, and large-file searches are also part of final verifi
 
 ## Colab
 
-Open [capstone_demo.ipynb](../capstone_demo.ipynb), start a fresh runtime, and execute setup/hardware detection. First run the **FAST DEMO** audit and user-audio inference cells. The direct training and final comparison cells are marked **EXPENSIVE TRAINING** and require a pilot/authorization. The notebook imports package modules instead of duplicating the implementation.
+Open [capstone_demo.ipynb](../capstone_demo.ipynb), start a fresh runtime, and select Git or uploaded-archive source mode. Git mode requires an explicitly named remote ref; archive mode is the reproducible option while `feature/direct-s2tt` remains local. Execute setup/hardware detection, then run the **FAST DEMO** audit and user-audio inference cells. Direct training and final comparison are marked **EXPENSIVE TRAINING** and require a pilot/authorization. The notebook imports package modules instead of duplicating the implementation.
 
 ## Publication commands—not executed
 

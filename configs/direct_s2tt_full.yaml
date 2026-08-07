@@ -1,3 +1,4 @@
+# "full" means full accepted data; this candidate uses LoRA, not full fine-tuning.
 kind: direct_s2tt
 dataset:
   id: McGill-NLP/NaijaS2ST

@@ -1,0 +1,63 @@
+{
+  "status": "measured_functional_smoke_not_quality_evaluation",
+  "date": "2026-08-07",
+  "environment": "reports/smoke_environment.json",
+  "source": {
+    "id": "HNX_0001",
+    "dataset": "McGill-NLP/NaijaS2ST",
+    "dataset_revision": "898f51582750fe244693794f22e3f4b32c5baf95",
+    "audio_duration_seconds": 5.8535,
+    "hausa_reference": "Welsh AMs ta damu game da 'yadda ake zama kamar wawaye'",
+    "english_reference": "Welsh AMs worried about 'looking like muppets'"
+  },
+  "canonical_timing_scope": "separate CLI processes after public model files were cached locally; model loading is included",
+  "systems": {
+    "zero_shot": {
+      "model": "openai/whisper-tiny",
+      "revision": "169d4a4341b33bc18d8881c4b69c2e104e1cc0af",
+      "english_output": "Well, say, I'm tired of the moment that I can't do it.",
+      "inference_seconds": 4.992701099999977,
+      "real_time_factor": 0.8529428717861068,
+      "local_artifact": "artifacts/verification/zero_shot.json",
+      "artifact_sha256": "03957f2e6b1054803369d7a8075dc633ba6c15780da3d1e5db150e1bba03b9ad"
+    },
+    "cascade": {
+      "asr_model": "nahomazmach/whisper-small-ha",
+      "asr_revision": "c4e2b47d88ae8b3ee0a605e09863b93aafca72e3",
+      "mt_model": "facebook/nllb-200-distilled-600M",
+      "mt_revision": "f8d333a098d19b4fd9a8b18f94170487ad3f821d",
+      "hausa_output": "Welse Ems ta da mu game da ake zama bawaye.",
+      "english_output": "Welse Ems warned us about being crazy.",
+      "inference_seconds": 10.397543200000655,
+      "real_time_factor": 1.7762950713249601,
+      "local_artifact": "artifacts/verification/cascade.json",
+      "artifact_sha256": "dbeffb7b818b9b8b8b6cae4a4a98ad93e5d8b903b7447c63707b4aff310d84e8"
+    },
+    "three_step_direct": {
+      "base_model": "openai/whisper-tiny",
+      "base_revision": "169d4a4341b33bc18d8881c4b69c2e104e1cc0af",
+      "label_provenance": "genuine aligned English reference for HNX_0001",
+      "steps": 3,
+      "english_output": "Well, say, I'm tired of the moment that I can't do anything.",
+      "inference_seconds": 4.159727899997961,
+      "real_time_factor": 0.7106394294008646,
+      "training_outer_wall_seconds": 1.0161537999993016,
+      "checkpoint_size_bytes": 155007480,
+      "local_inference_artifact": "artifacts/verification/fine_tuned_direct.json",
+      "inference_artifact_sha256": "c039b8abd17025f1ce42643e860486980c804dcd034aefe407911a5324557f11",
+      "local_training_artifact": "artifacts/verification/training-20260807T161840Z/summary.json",
+      "training_artifact_sha256": "ed21fd56513168ee6144e22ae647a75d8a4095dfb24c9d2e37e920b1efe37e6c"
+    }
+  },
+  "cold_cache_observation": {
+    "interpretation": "Earlier first-run timings varied substantially with filesystem/model cache state and are retained only as cold-cache evidence.",
+    "zero_shot_seconds": 7.876108899999963,
+    "cascade_seconds": 52.06918779999978,
+    "direct_seconds": 4.178223499999149
+  },
+  "limitations": [
+    "The direct checkpoint was trained and inferred on the same example.",
+    "Single-example outputs and timings do not estimate held-out quality or production throughput.",
+    "The heavyweight source audio and checkpoints remain intentionally ignored by Git."
+  ]
+}

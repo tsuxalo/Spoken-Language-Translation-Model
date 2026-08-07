@@ -53,6 +53,7 @@ For tests:
 python -m pip install -r requirements-dev.txt
 python -m pip install -e . --no-deps
 pytest -q
+python scripts/validate_notebook.py capstone_demo.ipynb
 ```
 
 The tested local environment used CPU PyTorch 2.13.0 and Transformers 5.14.1. Runtime precision selection is BF16 on supported CUDA, otherwise FP16 on CUDA, otherwise FP32 on CPU/MPS.
@@ -84,11 +85,15 @@ The direct job downloads the NaijaS2ST training audio and is an expensive full e
 Inference keeps ASR, zero-shot, direct, and cascade outputs distinct:
 
 ```bash
-hausa-s2tt-infer --task asr --model-id nahomazmach/whisper-small-ha sample.wav
-hausa-s2tt-infer --task zero_shot --model-id openai/whisper-small sample.wav
+# Default public models resolve the immutable revisions listed in
+# reports/SOURCE_VERIFICATION.md.
+hausa-s2tt-infer --task asr sample.wav
+hausa-s2tt-infer --task zero_shot sample.wav
 hausa-s2tt-infer --task direct --model-id artifacts/checkpoints/whisper-small-ha-en-s2tt sample.wav
 hausa-s2tt-infer --task cascade sample.wav
 ```
+
+For a different public model, provide both `--model-id` and `--model-revision`. The Python factory defaults for the published Hausa ASR, Whisper-small, and NLLB cascade are also revision-pinned.
 
 After model selection is frozen, run the common held-out comparison exactly once with a unique run name:
 
@@ -109,11 +114,17 @@ Do not use a final-test result to revise hyperparameters. Use a new experimental
 
 ASR evaluation reports corpus raw and normalized WER/CER. Translation evaluation reports case-sensitive SacreBLEU with `13a` tokenization and chrF++ (`word_order=2`), including signatures and package versions. COMET is optional and has not been run.
 
-Ignored runtime outputs live under `artifacts/`; checkpoints, model binaries, datasets, caches, and generated predictions are excluded from Git. Small evidence summaries are tracked in `reports/`.
+Ignored runtime outputs live under `artifacts/`; checkpoints, model binaries, datasets, caches, and generated predictions are excluded from Git. Small evidence summaries are tracked in `reports/`. The canonical functional-smoke values, local artifact paths, and SHA-256 checksums are in [`reports/smoke_results.json`](reports/smoke_results.json).
 
 ## Colab
 
-[capstone_demo.ipynb](capstone_demo.ipynb) is the 17-section graduate-project workflow. Start with a fresh GPU runtime, run setup and hardware detection, use the marked **FAST DEMO** cells first, and run **EXPENSIVE TRAINING** only after the pilot estimate is acceptable. Colab accelerator type and price are never assumed.
+[capstone_demo.ipynb](capstone_demo.ipynb) is the 17-section graduate-project workflow. Start with a fresh GPU runtime, choose an explicit source mode in the setup cell, and run hardware detection. Git mode requires `REPO_REF` to exist remotely; until this local branch is pushed or merged, use archive-upload mode with a source ZIP made from this checkout. Use the marked **FAST DEMO** cells first, and run **EXPENSIVE TRAINING** only after the pilot estimate is acceptable. Colab accelerator type and price are never assumed.
+
+Create the unpublished-source archive from a committed checkout with:
+
+```bash
+git archive --format=zip --prefix=Spoken-Language-Translation-Model/ HEAD -o hausa-s2tt-source.zip
+```
 
 ## Ethics, use, and licenses
 
@@ -124,8 +135,9 @@ FLEURS and NaijaS2ST are CC BY 4.0. The published Hausa ASR checkpoint reports A
 ## Repository map
 
 - `src/hausa_s2tt/`: reusable data, training, inference, evaluation, hardware, and telemetry modules.
-- `configs/`: pinned ASR, LoRA, direct, cascade, and smoke configurations.
+- [`configs/`](configs/README.md): pinned ASR, LoRA, direct, cascade, and smoke configurations, including a wiring/status matrix.
 - `tests/`: CPU-safe unit tests plus an opt-in real-checkpoint smoke.
+- `scripts/`: replayable structural validation utilities.
 - `reports/`: audit, comparison, ethics, source verification, and human-evaluation materials.
 - `model_cards/`: honest drafts for future ASR-v2 and direct-S2TT checkpoints.
 - Root Python files: backward-compatible wrappers around installed commands.

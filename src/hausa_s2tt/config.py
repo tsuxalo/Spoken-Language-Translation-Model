@@ -115,6 +115,33 @@ class ExperimentConfig:
             raise ValueError(f"Unsupported experiment kind: {self.kind!r}")
         if self.model.task not in {"transcribe", "translate"}:
             raise ValueError("model.task must be 'transcribe' or 'translate'")
+        if self.kind == "asr" and self.model.task != "transcribe":
+            raise ValueError("ASR experiments must use model.task='transcribe'")
+        if self.kind == "asr" and self.dataset.target_language.casefold() != "hausa":
+            raise ValueError("ASR experiments must target Hausa text")
+        if self.kind == "direct_s2tt":
+            if self.model.task != "translate":
+                raise ValueError("Direct S2TT experiments must use model.task='translate'")
+            if self.dataset.target_language.casefold() != "english":
+                raise ValueError("Direct S2TT experiments must target English text")
+            if self.dataset.target_column != "target_text":
+                raise ValueError(
+                    "Direct S2TT requires genuine aligned English target_text labels"
+                )
+            if not self.dataset.derive_validation_from_train:
+                raise ValueError(
+                    "Direct S2TT validation must be derived from train by speaker"
+                )
+        if self.kind == "zero_shot" and self.model.task != "translate":
+            raise ValueError("Zero-shot Whisper translation must use model.task='translate'")
+        if self.kind == "cascade":
+            if self.model.task != "transcribe":
+                raise ValueError("A cascade ASR stage must use model.task='transcribe'")
+            if (self.mt.source_language, self.mt.target_language) != (
+                "hau_Latn",
+                "eng_Latn",
+            ):
+                raise ValueError("The Hausa-English cascade requires hau_Latn -> eng_Latn")
         if self.model.efficiency_strategy not in {
             "full",
             "freeze_encoder",

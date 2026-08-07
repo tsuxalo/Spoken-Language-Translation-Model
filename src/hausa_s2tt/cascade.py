@@ -10,6 +10,7 @@ from typing import Any
 
 from .inference import InferenceResult, WhisperRuntime, create_asr_runtime
 from .mt import NLLBTranslator
+from .revisions import HAUSA_ASR_ID
 
 
 @dataclass
@@ -78,5 +79,5 @@ class CascadeTranslator:
         ]
 
 
-def cascade_translate(audio: str | Path, *, asr_model_id: str = "nahomazmach/whisper-small-ha") -> str:
+def cascade_translate(audio: str | Path, *, asr_model_id: str = HAUSA_ASR_ID) -> str:
     return CascadeTranslator(asr=create_asr_runtime(asr_model_id)).translate(audio).english_text

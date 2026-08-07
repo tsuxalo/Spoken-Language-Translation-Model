@@ -19,24 +19,24 @@ One public NaijaS2ST train example, HNX_0001, was used only to validate mechanic
 
 | Path | Checkpoint(s) | Output | Measured inference | Interpretation |
 |---|---|---|---:|---|
-| Zero-shot direct | `openai/whisper-tiny` | “Well, say, I'm tired of the moment that I can't do it.” | 7.876 s; RTF 1.346 | English and nonempty, but inaccurate |
-| Cascade | `nahomazmach/whisper-small-ha` → NLLB-200 600M | Hausa: “Welse Ems ta da mu game da ake zama bawaye.” English: “Welse Ems warned us about being crazy.” | 52.069 s; RTF 8.895 | Both stages function; meaning remains imperfect |
-| Three-step direct smoke | `openai/whisper-tiny`, encoder frozen, genuine HNX_0001 English label | “Well, say, I'm tired of the moment that I can't do anything.” | 4.178 s; RTF 0.714 | Saved/reloaded direct checkpoint emits English; no quality claim |
+| Zero-shot direct | `openai/whisper-tiny` | “Well, say, I'm tired of the moment that I can't do it.” | 4.993 s; RTF 0.853 | English and nonempty, but inaccurate |
+| Cascade | `nahomazmach/whisper-small-ha` → NLLB-200 600M | Hausa: “Welse Ems ta da mu game da ake zama bawaye.” English: “Welse Ems warned us about being crazy.” | 10.398 s; RTF 1.776 | Both stages function; meaning remains imperfect |
+| Three-step direct smoke | `openai/whisper-tiny`, encoder frozen, genuine HNX_0001 English label | “Well, say, I'm tired of the moment that I can't do anything.” | 4.160 s; RTF 0.711 | Saved/reloaded direct checkpoint emits English; no quality claim |
 
-Runtime artifacts:
+Canonical cached-local verification artifacts:
 
-- `artifacts/smoke/zero_shot_direct.json`
-- `artifacts/smoke/cascade.json`
-- `artifacts/smoke/training-20260807T155504Z/summary.json`
-- `artifacts/smoke/fine_tuned_direct.json`
+- `artifacts/verification/zero_shot.json`
+- `artifacts/verification/cascade.json`
+- `artifacts/verification/training-20260807T161840Z/summary.json`
+- `artifacts/verification/fine_tuned_direct.json`
 
-These paths are intentionally ignored by Git because they include generated audio/checkpoints. The tracked summary reports only measured values from them.
+These paths are intentionally ignored by Git because they accompany generated audio/checkpoints. Their measurements and SHA-256 checksums are tracked in [smoke_results.json](smoke_results.json). Earlier first-run measurements were 7.876 s zero-shot, 52.069 s cascade, and 4.178 s direct; the large cache-state variation is retained in that JSON and is why none of these single-example values is presented as production throughput.
 
 ## Efficiency and estimator accuracy
 
-The genuine-label three-step CPU smoke measured 0.8112 seconds inside Trainer and 0.9483 seconds in the telemetry context, with 3.698 train steps/s, zero GPU-hours, and no VRAM measurement. Its saved full tiny checkpoint measured 155,007,480 bytes (147.827 MiB); checkpoint writing occurred outside the timed training block.
+The canonical genuine-label three-step CPU verification measured 0.8807 seconds inside Trainer and 1.0162 seconds in the telemetry context, with 3.406 train steps/s, zero GPU-hours, and no VRAM measurement. Its saved full tiny checkpoint measured 155,007,480 bytes (147.827 MiB); checkpoint writing occurred outside the timed training block.
 
-A one-step outer-wall pilot measured 0.8223 seconds. Linear extrapolation predicted 2.4669 seconds for three steps; the measured three-step value was 0.9483 seconds, an absolute percentage error of 160.13%. Fixed startup overhead dominates at this scale, so this estimator result must not be transferred to Whisper-small or GPU training.
+Estimator validation used the earlier three-step run so it remains a matched comparison: a one-step outer-wall pilot measured 0.8223 seconds, linear extrapolation predicted 2.4669 seconds, and that run's measured three-step value was 0.9483 seconds—an absolute percentage error of 160.13%. Fixed startup overhead dominates at this scale, so this estimator result must not be transferred to Whisper-small or GPU training.
 
 Artifact: `artifacts/smoke/estimator_validation.json`.
 
