@@ -81,6 +81,7 @@ class WhisperRuntime:
         self.processor: Any | None = None
         self.model: Any | None = None
         self.device = "cpu"
+        self.torch_dtype: Any | None = None
 
     def load(self) -> WhisperRuntime:
         if self.model is not None:
@@ -95,6 +96,8 @@ class WhisperRuntime:
             "float16": torch.float16,
             "float32": torch.float32,
         }[selected.dtype]
+        
+        self.torch_dtype = dtype
         local_adapter = Path(self.model_id) / "adapter_config.json"
         self.processor = WhisperProcessor.from_pretrained(
             self.model_id, revision=self.revision
@@ -136,10 +139,19 @@ class WhisperRuntime:
             truncation=True,
             return_attention_mask=True,
         )
-        inputs = batch["input_features"].to(self.device)
+        
+        if self.torch_dtype is None:
+            raise RuntimeError("Runtime dtype was not initialized")
+        
+        inputs = batch["input_features"].to(
+            device=self.device,
+            dtype=self.torch_dtype,
+        )
+        
         attention_mask = batch.get("attention_mask")
         if attention_mask is not None:
             attention_mask = attention_mask.to(self.device)
+            
         with torch.inference_mode():
             predicted = self.model.generate(
                 input_features=inputs,
