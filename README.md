@@ -85,3 +85,10 @@ The base model is barely phonetically related to the correct answer; the fine-tu
 - Inference pipeline: fully built and confirmed working against the real fine-tuned model, not just the base model.
 - Model: fine-tuned and published to the Hugging Face Hub, so it can be used without anyone retraining it locally.
 - Notebook: mirrors all of the above and is Colab-ready — Section 4 (training telemetry) and Section 5 (inference demo) both work out of the box using the published model and the real training log, with no local setup required.
+
+## Notes
+- build the cascade model and a notebook. NA has already began the ASR portion. Extending it with NLLB?
+- build the direct s2tt model and a notebook. Speech Encoder-Text decoder Transformer
+- Our final submission should be a ipnyb file that include the outputs from both notebooks, comparing the architectures
+- focusing on hausa due to the amount of available data, with an intent to make this applicable to all spoken languages later. Note that hausa is a tonal language
+- note the difference between ASR vs speech encoder
