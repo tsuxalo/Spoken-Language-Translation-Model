@@ -8,8 +8,8 @@
 
 - Repository: `https://github.com/tsuxalo/Spoken-Language-Translation-Model.git`
 - Selected technical base: `feature/direct-s2tt` at `8ec5af16898cee654f05df277927a7a5c1876d4a`
-- Working branch: `feature/direct-s2tt-training-notebook`
-- No reset, checkout-based discard, history rewrite, push, checkpoint upload, or external publication was performed.
+- Delivery branch: `feature/direct-s2tt`
+- History was preserved: no reset, checkout-based discard, history rewrite, checkpoint upload, or external model publication is part of this delivery.
 
 The original project was a working but scientifically compromised Hausa ASR prototype. Detailed findings are in [REPOSITORY_AUDIT.md](REPOSITORY_AUDIT.md).
 
@@ -81,7 +81,7 @@ Credential, absolute-path, and large-file searches are also part of final verifi
 
 ## Colab
 
-Open [Notebook 02](../notebooks/02_direct_s2tt_training.ipynb) in a fresh runtime after its branch is published. Its setup uses `feature/direct-s2tt-training-notebook`, stops on a dirty checkout, installs editable, and verifies Git/package/hardware provenance. Run once with every stage flag false; then enable the structural smoke only. Baselines and matched pilots are separate expensive flags. Architecture selection requires both pilot artifacts and qualitative review; full training additionally requires a hardware-matched phase-aware projection.
+Open [Notebook 02](../notebooks/02_direct_s2tt_training.ipynb) in a fresh runtime from `feature/direct-s2tt`. Its setup stops on a dirty checkout, installs editable, and verifies Git/package/hardware provenance. Run once with every stage flag false; then enable the structural smoke only. Baselines and matched pilots are separate expensive flags. Architecture selection requires both pilot artifacts and qualitative review; full training additionally requires a hardware-matched phase-aware projection.
 
 ## Publication commands—not executed
 

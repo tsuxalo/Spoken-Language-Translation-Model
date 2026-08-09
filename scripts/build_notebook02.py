@@ -79,7 +79,7 @@ import sys
 from pathlib import Path
 
 REPO_URL = "https://github.com/tsuxalo/Spoken-Language-Translation-Model.git"
-REPO_REF = "feature/direct-s2tt-training-notebook"
+REPO_REF = "feature/direct-s2tt"
 IN_COLAB = "google.colab" in sys.modules
 
 if IN_COLAB:
@@ -870,6 +870,9 @@ Until pilot artifacts exist: **No measured training improvement is available yet
 """
     ),
 ]
+
+for index, cell in enumerate(cells):
+    cell["id"] = f"direct-s2tt-{index:02d}"
 
 notebook = nbformat.v4.new_notebook(
     cells=cells,

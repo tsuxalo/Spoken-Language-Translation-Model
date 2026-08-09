@@ -48,6 +48,10 @@ class NotebookContractTests(unittest.TestCase):
         )
         positions = [markdown_text.index(f"## {section}.") for section in range(1, 34)]
         self.assertEqual(positions, sorted(positions))
+        self.assertEqual(
+            [cell.id for cell in notebook.cells],
+            [f"direct-s2tt-{index:02d}" for index in range(len(notebook.cells))],
+        )
         for flag in (
             "RUN_STRUCTURAL_SMOKE = False",
             "RUN_BASELINE_EVALUATION = False",
@@ -55,7 +59,7 @@ class NotebookContractTests(unittest.TestCase):
             "RUN_FULL_TRAINING = False",
         ):
             self.assertIn(flag, code_text)
-        self.assertIn('REPO_REF = "feature/direct-s2tt-training-notebook"', code_text)
+        self.assertIn('REPO_REF = "feature/direct-s2tt"', code_text)
         self.assertIn("official_dev_evaluated", markdown_text + code_text)
         self.assertNotIn('load_naija_split("dev"', code_text)
         self.assertNotIn("git reset --hard", code_text)

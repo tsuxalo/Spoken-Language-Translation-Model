@@ -43,7 +43,7 @@ Notebook 00 may show only the checked-in aggregate NaijaS2ST `dev` audit. Notebo
 
 ## Colab
 
-After the branch is published, open the desired notebook in Colab, select an appropriate runtime, and run from the top. Notebook 00 uses `feature/direct-s2tt`; Notebook 02 uses `feature/direct-s2tt-training-notebook`. Their setup cells clone or safely fast-forward a clean checkout, stop on dirty work, perform an editable install, evict stale imports, and verify package/Git/version provenance. After merge, update `REPO_REF` to `main`.
+After the branch is published, open the desired notebook in Colab, select an appropriate runtime, and run from the top. Notebooks 00 and 02 use `feature/direct-s2tt`. Their setup cells clone or safely fast-forward a clean checkout, stop on dirty work, perform an editable install, evict stale imports, and verify package/Git/version provenance. After merge, update `REPO_REF` to `main`.
 
 Leave `RUN_FULL_METADATA_AUDIT`, `BUILD_FULL_TRAINING_DATASET`, and `WRITE_ARTIFACTS` false for the safe path. Enable them only after reviewing the storage/runtime note in Section 19.
 
