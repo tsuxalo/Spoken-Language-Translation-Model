@@ -17,6 +17,7 @@ from hausa_s2tt.telemetry import (
     RuntimeMeasurement,
     estimate_error_percent,
     estimate_full_run,
+    estimate_training_from_pilot_phases,
 )
 from hausa_s2tt.training import summarize_training_workload
 
@@ -24,9 +25,7 @@ from hausa_s2tt.training import summarize_training_workload
 class InferenceTelemetryTests(unittest.TestCase):
     def test_default_public_runtimes_are_revision_pinned(self):
         self.assertEqual(create_asr_runtime().revision, HAUSA_ASR_REVISION)
-        self.assertEqual(
-            create_zero_shot_runtime().revision, WHISPER_SMALL_REVISION
-        )
+        self.assertEqual(create_zero_shot_runtime().revision, WHISPER_SMALL_REVISION)
         self.assertEqual(NLLBTranslator().revision, NLLB_REVISION)
 
     def test_training_workload_counts_multiple_epochs(self):
@@ -66,6 +65,29 @@ class InferenceTelemetryTests(unittest.TestCase):
             guard.seal({"score": 1})
             with self.assertRaises(RuntimeError):
                 guard.ensure_unused()
+
+    def test_phase_aware_pilot_projection_separates_fixed_costs_and_uncertainty(self):
+        estimate = estimate_training_from_pilot_phases(
+            [2.0, 2.5, 3.0],
+            optimizer_steps_per_epoch=10,
+            epochs=2,
+            startup_seconds=10,
+            validation_seconds_per_run=5,
+            validation_runs=2,
+            checkpoint_seconds_per_save=3,
+            checkpoint_saves=2,
+            gpu_count=1,
+            checkpoint_bytes_per_save=100,
+            examples_per_step=16,
+            audio_seconds_per_step=120,
+            gpu_usd_per_hour=None,
+        )
+        self.assertEqual(estimate["projected_wall_seconds"], 76)
+        self.assertEqual(estimate["projected_checkpoint_storage_bytes"], 200)
+        self.assertIsNone(estimate["projected_gpu_cost_usd"])
+        lower, upper = estimate["projected_wall_seconds_interval"]
+        self.assertLess(lower, estimate["projected_wall_seconds"])
+        self.assertGreater(upper, estimate["projected_wall_seconds"])
 
 
 if __name__ == "__main__":

@@ -32,6 +32,9 @@ class DatasetConfig:
     max_validation_samples: int | None = None
     derive_validation_from_train: bool = False
     validation_fraction: float = 0.1
+    pairing_artifacts_dir: str | None = "artifacts/data/naija_s2st"
+    require_pairing_artifacts: bool = False
+    tracked_audit_path: str | None = "reports/naija_s2st_audit_summary.json"
 
 
 @dataclass
@@ -65,6 +68,8 @@ class TrainingConfig:
     eval_strategy: str = "epoch"
     save_strategy: str = "epoch"
     logging_steps: int = 25
+    eval_steps: int | None = None
+    save_steps: int | None = None
     save_total_limit: int = 2
     early_stopping_patience: int | None = 2
     dataloader_num_workers: int = 0
@@ -121,7 +126,9 @@ class ExperimentConfig:
             raise ValueError("ASR experiments must target Hausa text")
         if self.kind == "direct_s2tt":
             if self.model.task != "translate":
-                raise ValueError("Direct S2TT experiments must use model.task='translate'")
+                raise ValueError(
+                    "Direct S2TT experiments must use model.task='translate'"
+                )
             if self.dataset.target_language.casefold() != "english":
                 raise ValueError("Direct S2TT experiments must target English text")
             if self.dataset.target_column != "target_text":
@@ -132,8 +139,30 @@ class ExperimentConfig:
                 raise ValueError(
                     "Direct S2TT validation must be derived from train by speaker"
                 )
+            if self.dataset.train_split != "train":
+                raise ValueError(
+                    "Direct S2TT may train only from NaijaS2ST official train"
+                )
+            if self.dataset.test_split != "dev":
+                raise ValueError("Direct S2TT must reserve NaijaS2ST official dev")
+            if self.dataset.validation_split != "derived_from_train":
+                raise ValueError(
+                    "Direct S2TT validation must be derived from official train"
+                )
+            if self.training.seed != 42:
+                raise ValueError(
+                    "Direct S2TT project split membership is fixed at seed 42"
+                )
+            if not self.dataset.id or not self.dataset.revision:
+                raise ValueError(
+                    "Direct S2TT requires a pinned dataset ID and revision"
+                )
+            if not self.model.id or not self.model.revision:
+                raise ValueError("Direct S2TT requires a pinned model ID and revision")
         if self.kind == "zero_shot" and self.model.task != "translate":
-            raise ValueError("Zero-shot Whisper translation must use model.task='translate'")
+            raise ValueError(
+                "Zero-shot Whisper translation must use model.task='translate'"
+            )
         if self.kind == "cascade":
             if self.model.task != "transcribe":
                 raise ValueError("A cascade ASR stage must use model.task='transcribe'")
@@ -141,7 +170,9 @@ class ExperimentConfig:
                 "hau_Latn",
                 "eng_Latn",
             ):
-                raise ValueError("The Hausa-English cascade requires hau_Latn -> eng_Latn")
+                raise ValueError(
+                    "The Hausa-English cascade requires hau_Latn -> eng_Latn"
+                )
         if self.model.efficiency_strategy not in {
             "full",
             "freeze_encoder",
@@ -161,8 +192,19 @@ class ExperimentConfig:
             raise ValueError(
                 "eval_strategy and save_strategy must match when selecting the best model"
             )
+        if self.training.eval_strategy == "steps":
+            if not self.training.eval_steps or not self.training.save_steps:
+                raise ValueError(
+                    "Step-based evaluation requires positive eval_steps and save_steps"
+                )
+            if self.training.eval_steps != self.training.save_steps:
+                raise ValueError(
+                    "eval_steps and save_steps must match for best-checkpoint selection"
+                )
         if self.generation.chunk_length_seconds > 30.0:
-            raise ValueError("Whisper chunks must not exceed its 30 second input window")
+            raise ValueError(
+                "Whisper chunks must not exceed its 30 second input window"
+            )
         if self.generation.stride_seconds < 0:
             raise ValueError("generation.stride_seconds must be non-negative")
         if self.generation.stride_seconds >= self.generation.chunk_length_seconds:

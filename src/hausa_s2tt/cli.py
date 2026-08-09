@@ -274,7 +274,9 @@ def evaluate_asr_main(argv: list[str] | None = None) -> None:
     parser.add_argument("--dataset-revision", default=FLEURS_REVISION)
     parser.add_argument("--split", choices=["validation", "test"], default="validation")
     parser.add_argument("--run-name", required=True)
-    parser.add_argument("--output-dir", type=Path, default=Path("artifacts/evaluations/asr"))
+    parser.add_argument(
+        "--output-dir", type=Path, default=Path("artifacts/evaluations/asr")
+    )
     parser.add_argument("--max-samples", type=int)
     parser.add_argument("--confirm-final-test", action="store_true")
     args = parser.parse_args(argv)
@@ -285,9 +287,9 @@ def evaluate_asr_main(argv: list[str] | None = None) -> None:
     guard = FinalTestGuard(args.output_dir.parent, args.run_name)
     if args.split == "test":
         guard.ensure_unused()
-    dataset = load_fleurs_splits(
-        revision=args.dataset_revision, splits=(args.split,)
-    )[args.split]
+    dataset = load_fleurs_splits(revision=args.dataset_revision, splits=(args.split,))[
+        args.split
+    ]
     if args.max_samples is not None:
         dataset = dataset.select(range(min(args.max_samples, len(dataset))))
     runtime = create_asr_runtime(args.model_id, revision=args.model_revision)
@@ -335,7 +337,10 @@ def evaluate_s2tt_main(argv: list[str] | None = None) -> None:
 
     parser = argparse.ArgumentParser(description="Evaluate common held-out S2TT audio")
     parser.add_argument(
-        "--systems", nargs="+", choices=["zero_shot", "direct", "cascade"], required=True
+        "--systems",
+        nargs="+",
+        choices=["zero_shot", "direct", "cascade"],
+        required=True,
     )
     parser.add_argument("--direct-model-id")
     parser.add_argument("--direct-model-revision")
@@ -347,7 +352,9 @@ def evaluate_s2tt_main(argv: list[str] | None = None) -> None:
     parser.add_argument("--mt-model-revision", default=NLLB_REVISION)
     parser.add_argument("--dataset-revision", default=NAIJA_REVISION)
     parser.add_argument("--run-name", required=True)
-    parser.add_argument("--output-dir", type=Path, default=Path("artifacts/evaluations/s2tt"))
+    parser.add_argument(
+        "--output-dir", type=Path, default=Path("artifacts/evaluations/s2tt")
+    )
     parser.add_argument("--confirm-final-test", action="store_true")
     args = parser.parse_args(argv)
     if not args.confirm_final_test:
@@ -372,9 +379,7 @@ def evaluate_s2tt_main(argv: list[str] | None = None) -> None:
         )
     if "cascade" in args.systems:
         runtimes["cascade"] = CascadeTranslator(
-            asr=create_asr_runtime(
-                args.asr_model_id, revision=args.asr_model_revision
-            ),
+            asr=create_asr_runtime(args.asr_model_id, revision=args.asr_model_revision),
             mt=NLLBTranslator(args.mt_model_id, revision=args.mt_model_revision),
         )
     system_rows = {name: [] for name in args.systems}
@@ -430,7 +435,9 @@ def evaluate_s2tt_main(argv: list[str] | None = None) -> None:
                 "mt": [args.mt_model_id, args.mt_model_revision],
             },
         }
-        write_prediction_artifacts(rows, summary, args.output_dir / args.run_name / name)
+        write_prediction_artifacts(
+            rows, summary, args.output_dir / args.run_name / name
+        )
         summaries[name] = summary
     guard.seal(summaries)
     print(json.dumps(summaries, indent=2, ensure_ascii=False))
@@ -467,11 +474,12 @@ def estimate_main(argv: list[str] | None = None) -> None:
 
 
 def smoke_train_main(argv: list[str] | None = None) -> None:
-    """Run three CPU-safe optimizer steps through the real Whisper Trainer path."""
+    """Run a genuine tiny LoRA forward/backward/save/reload/generation smoke."""
     from datetime import UTC, datetime
 
     import numpy as np
     from datasets import Dataset
+    from peft import LoraConfig, get_peft_model
     from transformers import (
         Seq2SeqTrainer,
         Seq2SeqTrainingArguments,
@@ -480,14 +488,25 @@ def smoke_train_main(argv: list[str] | None = None) -> None:
     )
 
     from .hardware import set_reproducible_seed
-    from .telemetry import RuntimeTimer, directory_size_bytes, write_json_artifact
-    from .training import SpeechSeq2SeqCollator
-
-    parser = argparse.ArgumentParser(description="Run a three-step Whisper training smoke")
-    parser.add_argument("--model-id", default=WHISPER_TINY_ID)
-    parser.add_argument(
-        "--revision", default=WHISPER_TINY_REVISION
+    from .inference import create_direct_runtime
+    from .telemetry import (
+        RuntimeTimer,
+        build_run_manifest,
+        directory_size_bytes,
+        parameter_counts,
+        write_json_artifact,
     )
+    from .training import (
+        SpeechSeq2SeqCollator,
+        assert_trainable_gradients,
+        discover_lora_target_modules,
+    )
+
+    parser = argparse.ArgumentParser(
+        description="Run a three-step Whisper training smoke"
+    )
+    parser.add_argument("--model-id", default=WHISPER_TINY_ID)
+    parser.add_argument("--revision", default=WHISPER_TINY_REVISION)
     parser.add_argument("--output-dir", type=Path, default=Path("artifacts/smoke"))
     parser.add_argument("--seed", type=int, default=42)
     parser.add_argument("--steps", type=int, default=3)
@@ -500,7 +519,8 @@ def smoke_train_main(argv: list[str] | None = None) -> None:
     if args.steps < 1:
         raise SystemExit("--steps must be positive")
     set_reproducible_seed(args.seed)
-    run_id = datetime.now(UTC).strftime("training-%Y%m%dT%H%M%SZ")
+    started = datetime.now(UTC)
+    run_id = started.strftime("training-%Y%m%dT%H%M%SZ")
     run_dir = args.output_dir / run_id
     checkpoint_dir = run_dir / "checkpoint"
     processor = WhisperProcessor.from_pretrained(
@@ -512,9 +532,23 @@ def smoke_train_main(argv: list[str] | None = None) -> None:
     model = WhisperForConditionalGeneration.from_pretrained(
         args.model_id, revision=args.revision
     )
-    model.freeze_encoder()
     model.generation_config.language = "hausa"
     model.generation_config.task = "translate"
+    model.generation_config.forced_decoder_ids = None
+    model.config.forced_decoder_ids = None
+    discovered_targets = discover_lora_target_modules(model, ["q_proj", "v_proj"])
+    model = get_peft_model(
+        model,
+        LoraConfig(
+            base_model_name_or_path=args.model_id,
+            revision=args.revision,
+            inference_mode=False,
+            r=4,
+            lora_alpha=8,
+            lora_dropout=0.0,
+            target_modules=["q_proj", "v_proj"],
+        ),
+    )
     rows = []
     if args.audio:
         from .audio import load_audio
@@ -528,7 +562,12 @@ def smoke_train_main(argv: list[str] | None = None) -> None:
         label_provenance = "user-supplied aligned English reference"
     else:
         for index, target in enumerate(
-            ["Good morning.", "Thank you.", "The meeting starts today.", "We are ready."]
+            [
+                "Good morning.",
+                "Thank you.",
+                "The meeting starts today.",
+                "We are ready.",
+            ]
         ):
             seconds = 1.0 + index * 0.05
             time_axis = np.arange(round(16_000 * seconds), dtype=np.float32) / 16_000
@@ -542,6 +581,18 @@ def smoke_train_main(argv: list[str] | None = None) -> None:
         audio_seconds = 1.05
         label_provenance = "synthetic English strings paired with synthetic tones"
     dataset = Dataset.from_list(rows)
+    collator = SpeechSeq2SeqCollator(processor=processor, target_column="target_text")
+    manual_batch = collator(rows[:1])
+    manual_loss = model(**manual_batch).loss
+    manual_loss.backward()
+    gradient_summary = assert_trainable_gradients(model)
+    model.zero_grad(set_to_none=True)
+    frozen_name, frozen_parameter = next(
+        (name, value)
+        for name, value in model.named_parameters()
+        if not value.requires_grad
+    )
+    frozen_before = frozen_parameter.detach().clone()
     training_args = Seq2SeqTrainingArguments(
         output_dir=str(checkpoint_dir),
         per_device_train_batch_size=1,
@@ -549,7 +600,9 @@ def smoke_train_main(argv: list[str] | None = None) -> None:
         learning_rate=1e-5,
         max_steps=args.steps,
         logging_steps=1,
-        save_strategy="no",
+        save_strategy="steps",
+        save_steps=args.steps,
+        save_total_limit=1,
         eval_strategy="no",
         report_to=[],
         remove_unused_columns=False,
@@ -561,20 +614,32 @@ def smoke_train_main(argv: list[str] | None = None) -> None:
         model=model,
         args=training_args,
         train_dataset=dataset,
-        data_collator=SpeechSeq2SeqCollator(
-            processor=processor,
-            target_column="target_text",
-        ),
+        data_collator=collator,
         processing_class=processor,
     )
     with RuntimeTimer() as timer:
         result = trainer.train()
     trainer.save_model(str(checkpoint_dir))
     processor.save_pretrained(str(checkpoint_dir))
+    frozen_unchanged = bool(frozen_parameter.detach().equal(frozen_before))
+    if not frozen_unchanged:
+        raise RuntimeError(
+            f"Frozen parameter changed during smoke training: {frozen_name}"
+        )
+    runtime = create_direct_runtime(
+        str(checkpoint_dir),
+        precision="fp32",
+        max_new_tokens=8,
+        batch_size=1,
+    )
+    generated = runtime.process(rows[0]["audio"])
+    generation_completed = isinstance(generated.text, str)
+    resumable = sorted(checkpoint_dir.glob("checkpoint-*"))
     measurement = timer.measurement(
         examples=args.steps, audio_seconds=audio_seconds * args.steps
     )
     summary = {
+        "artifact_schema_version": "1.0",
         "status": "passed",
         "purpose": "API/forward/backward smoke only; not a scientific experiment",
         "steps": trainer.state.global_step,
@@ -586,9 +651,65 @@ def smoke_train_main(argv: list[str] | None = None) -> None:
         "source_id": args.source_id,
         "checkpoint": str(checkpoint_dir),
         "checkpoint_size_bytes": directory_size_bytes(checkpoint_dir),
+        "parameters": parameter_counts(model),
+        "adapter_saved": (checkpoint_dir / "adapter_config.json").is_file(),
+        "processor_saved": any(
+            (checkpoint_dir / name).is_file()
+            for name in ("processor_config.json", "preprocessor_config.json")
+        ),
+        "resumable_trainer_checkpoint": str(resumable[-1]) if resumable else None,
+        "translation_decoding_configuration": "verified",
+        "generation_completed": generation_completed,
+        "scientific_quality_claim": "none",
+        "lora_target_module_counts": {
+            name: len(matches) for name, matches in discovered_targets.items()
+        },
+        "gradient_summary": gradient_summary,
+        "frozen_parameter_checked": frozen_name,
+        "frozen_parameter_unchanged": frozen_unchanged,
         "train_metrics": result.metrics,
         "runtime": measurement.to_dict(),
         "transformers_version": __import__("transformers").__version__,
+        "official_dev_evaluated": False,
     }
+    manifest = build_run_manifest(
+        {
+            "kind": "direct_s2tt_structural_smoke",
+            "model_id": args.model_id,
+            "model_revision": args.revision,
+            "seed": args.seed,
+            "optimizer_steps": args.steps,
+            "task": "translate",
+            "target_language": "English",
+            "lora": {
+                "r": 4,
+                "alpha": 8,
+                "dropout": 0.0,
+                "targets": ["q_proj", "v_proj"],
+            },
+        }
+    )
+    manifest.update(
+        {
+            "artifact_schema_version": "1.0",
+            "started_at": started.isoformat(),
+            "ended_at": datetime.now(UTC).isoformat(),
+            "parameters": summary["parameters"],
+            "gradient_summary": gradient_summary,
+            "runtime": summary["runtime"],
+            "checkpoint": summary["checkpoint"],
+            "checkpoint_size_bytes": summary["checkpoint_size_bytes"],
+            "trainer_history": trainer.state.log_history,
+            "generation_settings": {
+                "language": "Hausa",
+                "task": "translate",
+                "max_new_tokens": 8,
+                "num_beams": 1,
+            },
+            "official_dev_evaluated": False,
+        }
+    )
+    write_json_artifact(run_dir / "run_manifest.json", manifest)
+    summary["run_manifest"] = str(run_dir / "run_manifest.json")
     write_json_artifact(run_dir / "summary.json", summary)
     print(json.dumps({**summary, "artifact": str(run_dir / "summary.json")}, indent=2))

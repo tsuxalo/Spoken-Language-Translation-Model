@@ -43,28 +43,52 @@ class ModelSmokeTests(unittest.TestCase):
         self.assertEqual(features.ndim, 3)
         for task in ("transcribe", "translate"):
             with torch.inference_mode():
-                tokens = model.generate(features, language="Hausa", task=task, max_new_tokens=2)
+                tokens = model.generate(
+                    features, language="Hausa", task=task, max_new_tokens=2
+                )
             text = processor.tokenizer.batch_decode(tokens, skip_special_tokens=True)
             self.assertIsInstance(text[0], str)
 
     def test_lora_adapter_save_and_direct_reload(self):
         from pathlib import Path
 
-        from hausa_s2tt.config import ExperimentConfig, ModelConfig, TrainingConfig
+        from hausa_s2tt.config import (
+            DatasetConfig,
+            ExperimentConfig,
+            GenerationConfig,
+            ModelConfig,
+            TrainingConfig,
+        )
         from hausa_s2tt.inference import create_direct_runtime
         from hausa_s2tt.training import configure_whisper
 
         config = ExperimentConfig(
             kind="direct_s2tt",
+            dataset=DatasetConfig(
+                id="McGill-NLP/NaijaS2ST",
+                revision="898f51582750fe244693794f22e3f4b32c5baf95",
+                validation_split="derived_from_train",
+                test_split="dev",
+                target_column="target_text",
+                target_language="english",
+                derive_validation_from_train=True,
+            ),
             model=ModelConfig(
                 id=self.model_id,
                 revision=self.revision,
                 task="translate",
                 efficiency_strategy="lora",
             ),
-            training=TrainingConfig(gradient_checkpointing=False),
+            training=TrainingConfig(gradient_checkpointing=True),
+            generation=GenerationConfig(max_new_tokens=7, num_beams=1),
         )
         processor, model = configure_whisper(config)
+        self.assertFalse(model.config.use_cache)
+        self.assertEqual(model.generation_config.task, "translate")
+        self.assertEqual(model.generation_config.language, "hausa")
+        self.assertIsNone(model.generation_config.forced_decoder_ids)
+        self.assertEqual(model.generation_config.max_new_tokens, 7)
+        self.assertEqual(model.generation_config.num_beams, 1)
         batch = SpeechSeq2SeqCollator(processor, target_column="target_text")(
             [
                 {
@@ -85,11 +109,31 @@ class ModelSmokeTests(unittest.TestCase):
                 if parameter.requires_grad
             )
         )
+        import torch
+
+        frozen_parameter = next(
+            parameter for parameter in model.parameters() if not parameter.requires_grad
+        )
+        frozen_before = frozen_parameter.detach().clone()
+        optimizer = torch.optim.AdamW(
+            [parameter for parameter in model.parameters() if parameter.requires_grad],
+            lr=1e-4,
+        )
+        optimizer.step()
+        self.assertTrue(frozen_parameter.detach().equal(frozen_before))
         with tempfile.TemporaryDirectory() as directory:
             model.save_pretrained(directory)
             processor.save_pretrained(directory)
             self.assertTrue((Path(directory) / "adapter_config.json").is_file())
-            runtime = create_direct_runtime(directory, precision="fp32", max_new_tokens=2)
+            self.assertTrue(
+                any(
+                    (Path(directory) / name).is_file()
+                    for name in ("processor_config.json", "preprocessor_config.json")
+                )
+            )
+            runtime = create_direct_runtime(
+                directory, precision="fp32", max_new_tokens=2
+            )
             result = runtime.process(
                 {"array": np.zeros(16000, dtype=np.float32), "sampling_rate": 16000}
             )

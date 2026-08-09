@@ -1,0 +1,77 @@
+{
+  "status": "measured",
+  "purpose": "Direct-S2TT software mechanics only; no translation-quality claim",
+  "run_date_utc": "2026-08-09T17:32:32.924761+00:00",
+  "command": ".\\.venv\\Scripts\\hausa-s2tt-smoke-train.exe --output-dir artifacts/direct_s2tt/smoke --steps 3",
+  "git_head_at_run": "8ec5af16898cee654f05df277927a7a5c1876d4a",
+  "git_note": "The task implementation was uncommitted when the smoke ran; the run manifest records the selected base HEAD and this report records the exact generated-artifact hashes.",
+  "model_id": "openai/whisper-tiny",
+  "model_revision": "169d4a4341b33bc18d8881c4b69c2e104e1cc0af",
+  "task": "translate",
+  "target_language": "English",
+  "labels": "Synthetic English strings paired with synthetic tones",
+  "optimizer_steps": 3,
+  "parameters": {
+    "total": 37834368,
+    "trainable": 73728,
+    "trainable_fraction": 0.0019487044160483929
+  },
+  "lora": {
+    "rank": 4,
+    "alpha": 8,
+    "target_module_counts": {
+      "q_proj": 12,
+      "v_proj": 12
+    },
+    "trainable_parameter_tensors": 48,
+    "tensors_with_gradients": 48,
+    "tensors_with_finite_gradients": 48
+  },
+  "frozen_parameter_unchanged": true,
+  "adapter_saved": true,
+  "processor_saved": true,
+  "resumable_state_files_verified": [
+    "trainer_state.json",
+    "optimizer.pt",
+    "scheduler.pt",
+    "rng_state.pth"
+  ],
+  "adapter_reload_succeeded": true,
+  "translation_decoding_configuration": "verified",
+  "generation_completed": true,
+  "scientific_quality_claim": "none",
+  "runtime": {
+    "trainer_seconds": 1.5526,
+    "measured_context_seconds": 1.7350422000163235,
+    "examples_per_second": 1.7290645725918226,
+    "audio_seconds_per_second": 1.815517801221414,
+    "gpu_count": 0,
+    "gpu_hours": 0.0,
+    "peak_vram_bytes": null
+  },
+  "checkpoint_size_bytes": 9141536,
+  "environment": {
+    "platform": "Windows-11-10.0.26200-SP0",
+    "python": "3.12.13",
+    "torch": "2.13.0+cpu",
+    "transformers": "5.14.1",
+    "peft": "0.20.0",
+    "datasets": "4.8.5",
+    "accelerate": "1.14.0"
+  },
+  "official_dev_evaluated": false,
+  "artifacts": {
+    "summary": {
+      "path": "artifacts/direct_s2tt/smoke/training-20260809T173232Z/summary.json",
+      "sha256": "997cff1a38cbcbd32c76a14ccf5822cd461a67cd5d2077273eaddc624af7b741"
+    },
+    "run_manifest": {
+      "path": "artifacts/direct_s2tt/smoke/training-20260809T173232Z/run_manifest.json",
+      "sha256": "416c9bde3ba06895f42725df1b1e130992efaaa3755e4bf08cd6917c3ebbecf9"
+    },
+    "adapter": {
+      "path": "artifacts/direct_s2tt/smoke/training-20260809T173232Z/checkpoint/adapter_model.safetensors",
+      "sha256": "0fc7831d004cda16cd458323275d86eca2df0655ec8212e334a756cd795a4d6a"
+    }
+  }
+}

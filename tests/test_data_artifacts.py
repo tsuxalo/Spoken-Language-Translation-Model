@@ -11,8 +11,11 @@ from hausa_s2tt.datasets import (
     align_naija_rows,
     alignment_key,
     build_pairing_manifest,
+    load_pairing_artifacts,
+    load_pairing_jsonl,
     load_revision_matched_audit,
     pairing_artifact_record,
+    resolve_pairing_records,
     split_by_speaker,
     validate_pairing_artifact,
     write_pairing_artifacts,
@@ -21,9 +24,13 @@ from hausa_s2tt.datasets import (
 from hausa_s2tt.revisions import NAIJA_DATASET_ID, NAIJA_REVISION
 
 
-def row(language, text_id, user_id, text, *, duration=2.0, audio=None, recorded_at=None):
+def row(
+    language, text_id, user_id, text, *, duration=2.0, audio=None, recorded_at=None
+):
     return {
-        "audio": audio if audio is not None else {"path": f"audio/{user_id}-{text_id}.wav"},
+        "audio": audio
+        if audio is not None
+        else {"path": f"audio/{user_id}-{text_id}.wav"},
         "language": language,
         "text_id": text_id,
         "user_id": user_id,
@@ -83,7 +90,9 @@ class DataArtifactTests(unittest.TestCase):
                 "HT2",
                 "H2",
                 "Na biyu",
-                audio={"src": "https://example.invalid/audio.wav?X-Amz-Signature=secret"},
+                audio={
+                    "src": "https://example.invalid/audio.wav?X-Amz-Signature=secret"
+                },
             ),
         ]
         pairs, audit = align_naija_rows(
@@ -106,12 +115,16 @@ class DataArtifactTests(unittest.TestCase):
                 split_audit = type(audit)(
                     split=name,
                     paired_examples=len(records),
-                    rejection_reasons={reason: 0 for reason in PAIRING_REJECTION_REASONS},
+                    rejection_reasons={
+                        reason: 0 for reason in PAIRING_REJECTION_REASONS
+                    },
                 )
                 paths = write_pairing_artifacts(records, split_audit, output)
                 all_records.extend(
                     json.loads(line)
-                    for line in Path(paths["examples"]).read_text(encoding="utf-8").splitlines()
+                    for line in Path(paths["examples"])
+                    .read_text(encoding="utf-8")
+                    .splitlines()
                 )
             manifest = build_pairing_manifest(
                 [audit],
@@ -130,12 +143,16 @@ class DataArtifactTests(unittest.TestCase):
                 self.assertEqual(record["dataset_revision"], revision)
                 self.assertEqual(record["audio_locator"]["dataset_revision"], revision)
                 self.assertNotIn("audio", record)
-                self.assertEqual(record["artifact_schema_version"], ARTIFACT_SCHEMA_VERSION)
+                self.assertEqual(
+                    record["artifact_schema_version"], ARTIFACT_SCHEMA_VERSION
+                )
             self.assertNotIn("X-Amz-Signature", serialized)
             self.assertNotIn("secret", serialized)
             self.assertNotIn("bytes", serialized)
             self.assertEqual(
-                json.loads(manifest_path.read_text(encoding="utf-8"))["dataset_revision"],
+                json.loads(manifest_path.read_text(encoding="utf-8"))[
+                    "dataset_revision"
+                ],
                 revision,
             )
 
@@ -181,6 +198,77 @@ class DataArtifactTests(unittest.TestCase):
                     expected_dataset_id=NAIJA_DATASET_ID,
                     expected_dataset_revision="wrong",
                 )
+
+    def test_notebook00_membership_is_preserved_during_audio_resolution(self):
+        from datasets import Dataset
+
+        pairs, _ = align_naija_rows(
+            [
+                row("english", "ET1", "E1", "First English target"),
+                row("english", "ET2", "E2", "Second English target"),
+                row("hausa", "HT1", "H1", "Na farko"),
+                row("hausa", "HT2", "H2", "Na biyu"),
+            ],
+            split="train",
+        )
+        project = {"train": [dict(pairs[0])], "validation": [dict(pairs[1])]}
+        project["train"][0]["split"] = "train"
+        project["validation"][0]["split"] = "validation"
+        audits = [
+            type(_)(split=name, paired_examples=len(records))
+            for name, records in project.items()
+        ]
+        with tempfile.TemporaryDirectory() as temporary:
+            output = Path(temporary)
+            for audit in audits:
+                write_pairing_artifacts(project[audit.split], audit, output)
+            manifest = build_pairing_manifest(
+                audits,
+                git_commit="c" * 40,
+                split_policy=(
+                    "NaijaS2ST official train partitioned by Hausa speaker; dev reserved"
+                ),
+                seed=42,
+                max_duration_seconds=30.0,
+            )
+            write_pairing_manifest(manifest, output)
+            loaded, loaded_manifest = load_pairing_artifacts(output)
+
+            calls = []
+
+            def fake_loader(split, *, revision, sampling_rate):
+                calls.append((split, revision, sampling_rate))
+                return Dataset.from_dict(
+                    {
+                        "audio": [
+                            {"path": f"audio/{index}.wav", "bytes": None}
+                            for index in range(4)
+                        ],
+                        "split": ["train"] * 4,
+                    }
+                )
+
+            resolved_train = resolve_pairing_records(
+                loaded["train"], dataset_loader=fake_loader
+            )
+            resolved_validation = resolve_pairing_records(
+                loaded["validation"], dataset_loader=fake_loader
+            )
+            self.assertEqual(resolved_train["split"], ["train"])
+            self.assertEqual(resolved_validation["split"], ["validation"])
+            self.assertEqual(
+                resolved_validation["dataset_row_index"],
+                [project["validation"][0]["dataset_row_index"]],
+            )
+            self.assertTrue(all(call[0] == "train" for call in calls))
+            self.assertEqual(loaded_manifest["seed"], 42)
+
+            bad_path = output / "bad.jsonl"
+            bad = dict(project["train"][0])
+            bad["split"] = "validation"
+            bad_path.write_text(json.dumps(bad) + "\n", encoding="utf-8")
+            with self.assertRaisesRegex(ValueError, "rewrites project split"):
+                load_pairing_jsonl(bad_path, project_split="train")
 
 
 if __name__ == "__main__":

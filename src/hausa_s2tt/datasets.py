@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import hashlib
 import json
 import math
 import random
@@ -55,6 +56,17 @@ PAIRING_ARTIFACT_REQUIRED_FIELDS = (
     "dataset_row_index",
     "source_dataset",
     "dataset_revision",
+)
+PAIRING_MANIFEST_REQUIRED_FIELDS = (
+    "artifact_schema_version",
+    "generated_at",
+    "git_commit",
+    "dataset_id",
+    "dataset_revision",
+    "split_policy",
+    "seed",
+    "max_duration_seconds",
+    "splits",
 )
 
 
@@ -168,7 +180,9 @@ def _stable_parquet_reference(value: Any) -> str | None:
     parsed = urllib.parse.urlsplit(text)
     candidate = parsed.path.rsplit("/", 1)[-1] if parsed.scheme else text
     lowered = candidate.casefold()
-    if not candidate or any(term in lowered for term in ("token=", "signature=", "expires=")):
+    if not candidate or any(
+        term in lowered for term in ("token=", "signature=", "expires=")
+    ):
         return None
     return candidate
 
@@ -201,11 +215,15 @@ def build_stable_audio_locator(
 
 def validate_pairing_artifact(record: Mapping[str, Any]) -> None:
     """Reject incomplete or unsafe JSONL records before they reach disk."""
-    missing = [field for field in PAIRING_ARTIFACT_REQUIRED_FIELDS if field not in record]
+    missing = [
+        field for field in PAIRING_ARTIFACT_REQUIRED_FIELDS if field not in record
+    ]
     if missing:
         raise ValueError(f"Pairing artifact is missing required fields: {missing}")
     if "audio" in record:
-        raise ValueError("Pairing artifacts must use audio_locator, not an audio payload")
+        raise ValueError(
+            "Pairing artifacts must use audio_locator, not an audio payload"
+        )
     if record.get("artifact_schema_version") != ARTIFACT_SCHEMA_VERSION:
         raise ValueError("Unexpected pairing artifact schema version")
     if not record.get("dataset_revision"):
@@ -215,13 +233,20 @@ def validate_pairing_artifact(record: Mapping[str, Any]) -> None:
         if isinstance(value, (bytes, bytearray, memoryview)):
             raise TypeError(f"Raw audio/binary data is forbidden at {path}")
         value_type = type(value)
-        if value_type.__module__.startswith("numpy") and value_type.__name__ == "ndarray":
+        if (
+            value_type.__module__.startswith("numpy")
+            and value_type.__name__ == "ndarray"
+        ):
             raise ValueError(f"NumPy arrays are forbidden at {path}")
         if isinstance(value, Mapping):
             for key, child in value.items():
                 lowered = str(key).casefold()
-                if any(term in lowered for term in ("token", "signature", "authorization")):
-                    raise ValueError(f"Sensitive locator field is forbidden at {path}.{key}")
+                if any(
+                    term in lowered for term in ("token", "signature", "authorization")
+                ):
+                    raise ValueError(
+                        f"Sensitive locator field is forbidden at {path}.{key}"
+                    )
                 visit(child, f"{path}.{key}")
         elif isinstance(value, (list, tuple)):
             if len(value) > 1_024:
@@ -230,15 +255,270 @@ def validate_pairing_artifact(record: Mapping[str, Any]) -> None:
                 visit(child, f"{path}[{index}]")
         elif isinstance(value, str):
             parsed = urllib.parse.urlsplit(value)
-            query_names = {name.casefold() for name, _ in urllib.parse.parse_qsl(parsed.query)}
+            query_names = {
+                name.casefold() for name, _ in urllib.parse.parse_qsl(parsed.query)
+            }
             if parsed.scheme in {"http", "https"} and (
                 parsed.query
                 or query_names
-                & {"token", "x-amz-signature", "x-amz-credential", "expires", "signature"}
+                & {
+                    "token",
+                    "x-amz-signature",
+                    "x-amz-credential",
+                    "expires",
+                    "signature",
+                }
             ):
                 raise ValueError(f"Signed or expiring URL is forbidden at {path}")
 
     visit(record, "record")
+
+
+def validate_pairing_manifest(
+    manifest: Mapping[str, Any],
+    *,
+    expected_dataset_id: str = NAIJA_DATASET_ID,
+    expected_dataset_revision: str = NAIJA_REVISION,
+    expected_seed: int = 42,
+    required_project_splits: Sequence[str] = ("train", "validation"),
+) -> dict[str, Any]:
+    """Validate Notebook 00 provenance before a training consumer trusts it."""
+    missing = sorted(set(PAIRING_MANIFEST_REQUIRED_FIELDS) - set(manifest))
+    if missing:
+        raise ValueError(f"Data manifest is missing required fields: {missing}")
+    if manifest.get("artifact_schema_version") != ARTIFACT_SCHEMA_VERSION:
+        raise ValueError("Unexpected pairing manifest schema version")
+    if manifest.get("dataset_id") != expected_dataset_id:
+        raise ValueError(
+            "Pairing manifest dataset ID does not match the configured dataset"
+        )
+    if manifest.get("dataset_revision") != expected_dataset_revision:
+        raise ValueError(
+            "Pairing manifest revision does not match the configured revision"
+        )
+    if int(manifest.get("seed")) != expected_seed:
+        raise ValueError(f"Pairing manifest seed must be {expected_seed}")
+    split_policy = str(manifest.get("split_policy") or "").casefold()
+    if "speaker" not in split_policy or "official" not in split_policy:
+        raise ValueError(
+            "Pairing manifest must describe an official-train speaker split"
+        )
+    git_revision = str(manifest.get("git_commit") or "").strip()
+    if len(git_revision) < 7:
+        raise ValueError("Pairing manifest must record its generating Git commit")
+    if float(manifest.get("max_duration_seconds") or 0.0) <= 0:
+        raise ValueError("Pairing manifest max_duration_seconds must be positive")
+    split_metadata = manifest.get("splits")
+    if not isinstance(split_metadata, Mapping):
+        raise TypeError("Pairing manifest splits must be a mapping")
+    absent = sorted(set(required_project_splits) - set(split_metadata))
+    if absent:
+        raise ValueError(f"Pairing manifest is missing project splits: {absent}")
+    return dict(manifest)
+
+
+def load_pairing_manifest(
+    path: str | Path,
+    *,
+    expected_dataset_id: str = NAIJA_DATASET_ID,
+    expected_dataset_revision: str = NAIJA_REVISION,
+    expected_seed: int = 42,
+) -> dict[str, Any]:
+    payload = json.loads(Path(path).read_text(encoding="utf-8"))
+    if not isinstance(payload, Mapping):
+        raise TypeError("Pairing manifest must contain a JSON object")
+    return validate_pairing_manifest(
+        payload,
+        expected_dataset_id=expected_dataset_id,
+        expected_dataset_revision=expected_dataset_revision,
+        expected_seed=expected_seed,
+    )
+
+
+def load_pairing_jsonl(
+    path: str | Path,
+    *,
+    project_split: str,
+    expected_dataset_id: str = NAIJA_DATASET_ID,
+    expected_dataset_revision: str = NAIJA_REVISION,
+    allowed_official_splits: Sequence[str] = ("train",),
+) -> list[dict[str, Any]]:
+    """Load one exact project split without resolving its dataset-backed audio."""
+    records: list[dict[str, Any]] = []
+    identities: set[tuple[str, int]] = set()
+    artifact_path = Path(path)
+    for line_number, line in enumerate(
+        artifact_path.read_text(encoding="utf-8").splitlines(), 1
+    ):
+        if not line.strip():
+            continue
+        value = json.loads(line)
+        if not isinstance(value, Mapping):
+            raise TypeError(f"{artifact_path}:{line_number} is not a JSON object")
+        record = dict(value)
+        validate_pairing_artifact(record)
+        if record.get("split") != project_split:
+            raise ValueError(
+                f"{artifact_path}:{line_number} rewrites project split "
+                f"{record.get('split')!r}; expected {project_split!r}"
+            )
+        if record.get("source_dataset") != expected_dataset_id:
+            raise ValueError(f"{artifact_path}:{line_number} has the wrong dataset ID")
+        if record.get("dataset_revision") != expected_dataset_revision:
+            raise ValueError(
+                f"{artifact_path}:{line_number} has the wrong dataset revision"
+            )
+        if canonical_language(record.get("target_language")) != "english":
+            raise ValueError(f"{artifact_path}:{line_number} lacks an English target")
+        if not _clean_target(record.get("target_text")):
+            raise ValueError(f"{artifact_path}:{line_number} has an empty target_text")
+        locator = record["audio_locator"]
+        if not isinstance(locator, Mapping):
+            raise TypeError(
+                f"{artifact_path}:{line_number} audio_locator must be a mapping"
+            )
+        official_split = str(locator.get("split") or "")
+        if official_split not in allowed_official_splits:
+            raise ValueError(
+                f"{artifact_path}:{line_number} uses protected/unknown source split "
+                f"{official_split!r}"
+            )
+        row_index = int(locator.get("dataset_row_index"))
+        if row_index < 0 or row_index != int(record.get("dataset_row_index")):
+            raise ValueError(
+                f"{artifact_path}:{line_number} has inconsistent row coordinates"
+            )
+        for name, expected in (
+            ("source_dataset", expected_dataset_id),
+            ("dataset_revision", expected_dataset_revision),
+        ):
+            if locator.get(name) != expected:
+                raise ValueError(
+                    f"{artifact_path}:{line_number} locator {name} mismatch"
+                )
+        identity = (official_split, row_index)
+        if identity in identities:
+            raise ValueError(
+                f"Duplicate source coordinate in {artifact_path}: {identity}"
+            )
+        identities.add(identity)
+        records.append(record)
+    if not records:
+        raise ValueError(f"Pairing artifact contains no examples: {artifact_path}")
+    return records
+
+
+def split_membership_sha256(records: Sequence[Mapping[str, Any]]) -> str:
+    """Hash exact project membership and order without including text or audio."""
+    coordinates = [
+        {
+            "project_split": str(record["split"]),
+            "official_split": str(record["audio_locator"]["split"]),
+            "dataset_row_index": int(record["dataset_row_index"]),
+            "speaker_id": str(record["speaker_id"]),
+        }
+        for record in records
+    ]
+    canonical = json.dumps(coordinates, ensure_ascii=False, separators=(",", ":"))
+    return hashlib.sha256(canonical.encode("utf-8")).hexdigest()
+
+
+def load_pairing_artifacts(
+    directory: str | Path,
+    *,
+    expected_dataset_id: str = NAIJA_DATASET_ID,
+    expected_dataset_revision: str = NAIJA_REVISION,
+    expected_seed: int = 42,
+) -> tuple[dict[str, list[dict[str, Any]]], dict[str, Any]]:
+    """Load Notebook 00's exact train/validation contract and verify separation."""
+    artifact_dir = Path(directory)
+    manifest = load_pairing_manifest(
+        artifact_dir / "manifest.json",
+        expected_dataset_id=expected_dataset_id,
+        expected_dataset_revision=expected_dataset_revision,
+        expected_seed=expected_seed,
+    )
+    splits = {
+        split: load_pairing_jsonl(
+            artifact_dir / f"{split}.jsonl",
+            project_split=split,
+            expected_dataset_id=expected_dataset_id,
+            expected_dataset_revision=expected_dataset_revision,
+        )
+        for split in ("train", "validation")
+    }
+    assert_no_speaker_leakage(splits)
+    identities = {
+        split: {
+            (str(row["audio_locator"]["split"]), int(row["dataset_row_index"]))
+            for row in rows
+        }
+        for split, rows in splits.items()
+    }
+    if identities["train"] & identities["validation"]:
+        raise ValueError(
+            "Notebook 00 artifacts repeat source rows across project splits"
+        )
+    for split, rows in splits.items():
+        expected_count = manifest["splits"][split].get("accepted")
+        if expected_count is not None and int(expected_count) != len(rows):
+            raise ValueError(
+                f"Manifest says {expected_count} {split} rows, but JSONL contains {len(rows)}"
+            )
+    return splits, manifest
+
+
+def resolve_pairing_records(
+    records: Sequence[Mapping[str, Any]],
+    *,
+    sampling_rate: int = 16_000,
+    dataset_loader: Any = None,
+) -> Any:
+    """Resolve stable pinned row coordinates to a small dataset view with audio.
+
+    Only rows named by the artifact are selected. The top-level ``split`` column
+    remains Notebook 00's project assignment; the official source split stays in
+    ``audio_locator.split``.
+    """
+    if not records:
+        raise ValueError("At least one pairing record is required")
+    loader = dataset_loader or load_naija_split
+    official_splits = {str(record["audio_locator"]["split"]) for record in records}
+    revisions = {str(record["dataset_revision"]) for record in records}
+    dataset_ids = {str(record["source_dataset"]) for record in records}
+    if official_splits != {"train"}:
+        raise ValueError(
+            "Direct-training artifacts may resolve only official train rows"
+        )
+    if len(revisions) != 1 or len(dataset_ids) != 1:
+        raise ValueError(
+            "All resolved records must share one dataset and immutable revision"
+        )
+    revision = next(iter(revisions))
+    source = loader("train", revision=revision, sampling_rate=sampling_rate)
+    indices = [int(record["dataset_row_index"]) for record in records]
+    if min(indices) < 0 or max(indices) >= len(source):
+        raise IndexError(
+            "Pairing artifact row index falls outside the pinned source split"
+        )
+    selected = source.select(indices)
+    artifact_fields = set().union(*(record.keys() for record in records))
+    removable = [
+        name
+        for name in getattr(selected, "column_names", [])
+        if name in artifact_fields and name != "audio"
+    ]
+    if removable:
+        selected = selected.remove_columns(removable)
+    for name in sorted(artifact_fields):
+        if name == "audio":
+            continue
+        selected = selected.add_column(
+            name, [deepcopy(record.get(name)) for record in records]
+        )
+    if list(selected["split"]) != [str(record["split"]) for record in records]:
+        raise AssertionError("Audio resolution changed project split membership")
+    return selected
 
 
 def pairing_artifact_record(pair: Mapping[str, Any]) -> dict[str, Any]:
@@ -283,10 +563,14 @@ def align_naija_rows(
     source_name = canonical_language(source_language)
     target_name = canonical_language(target_language)
     source_rows = [
-        row for row in materialized if canonical_language(row.get("language")) == source_name
+        row
+        for row in materialized
+        if canonical_language(row.get("language")) == source_name
     ]
     target_rows = [
-        row for row in materialized if canonical_language(row.get("language")) == target_name
+        row
+        for row in materialized
+        if canonical_language(row.get("language")) == target_name
     ]
     audit.source_rows = len(source_rows)
     audit.target_rows = len(target_rows)
@@ -303,7 +587,9 @@ def align_naija_rows(
             target_id_counts[key] += 1
         else:
             audit.invalid_target_records += 1
-    audit.duplicate_target_text_ids = sum(count > 1 for count in target_id_counts.values())
+    audit.duplicate_target_text_ids = sum(
+        count > 1 for count in target_id_counts.values()
+    )
     audit.conflicting_target_ids = sorted(
         key
         for key, variants in targets.items()
@@ -313,9 +599,13 @@ def align_naija_rows(
     source_id_counts: Counter[str] = Counter(
         alignment_key(row.get("text_id"), row.get("language")) for row in source_rows
     )
-    audit.duplicate_source_text_ids = sum(count > 1 for count in source_id_counts.values())
+    audit.duplicate_source_text_ids = sum(
+        count > 1 for count in source_id_counts.values()
+    )
     seen_records: set[tuple[str, str, str]] = set()
-    rejection_reasons: Counter[str] = Counter({reason: 0 for reason in PAIRING_REJECTION_REASONS})
+    rejection_reasons: Counter[str] = Counter(
+        {reason: 0 for reason in PAIRING_REJECTION_REASONS}
+    )
     pairs: list[dict[str, Any]] = []
     durations: list[float] = []
     speakers: set[str] = set()
@@ -391,7 +681,9 @@ def align_naija_rows(
                 "target_text": target_text_original,
                 "source_text_original": source_text_original,
                 "target_text_original": target_text_original,
-                "source_text_whitespace_normalized": _clean_target(source_text_original),
+                "source_text_whitespace_normalized": _clean_target(
+                    source_text_original
+                ),
                 "target_text_whitespace_normalized": target_text_clean,
                 "duration": duration,
                 "speaker_id": speaker,
@@ -433,7 +725,9 @@ def align_naija_rows(
     return pairs, audit
 
 
-def speaker_sets(rows_by_split: Mapping[str, Sequence[Mapping[str, Any]]]) -> dict[str, set[str]]:
+def speaker_sets(
+    rows_by_split: Mapping[str, Sequence[Mapping[str, Any]]],
+) -> dict[str, set[str]]:
     return {
         split: {
             str(row.get("speaker_id") or row.get("user_id") or "").strip()
@@ -444,7 +738,9 @@ def speaker_sets(rows_by_split: Mapping[str, Sequence[Mapping[str, Any]]]) -> di
     }
 
 
-def speaker_leakage(rows_by_split: Mapping[str, Sequence[Mapping[str, Any]]]) -> dict[str, list[str]]:
+def speaker_leakage(
+    rows_by_split: Mapping[str, Sequence[Mapping[str, Any]]],
+) -> dict[str, list[str]]:
     sets = speaker_sets(rows_by_split)
     names = sorted(sets)
     overlaps: dict[str, list[str]] = {}
@@ -456,7 +752,9 @@ def speaker_leakage(rows_by_split: Mapping[str, Sequence[Mapping[str, Any]]]) ->
     return overlaps
 
 
-def assert_no_speaker_leakage(rows_by_split: Mapping[str, Sequence[Mapping[str, Any]]]) -> None:
+def assert_no_speaker_leakage(
+    rows_by_split: Mapping[str, Sequence[Mapping[str, Any]]],
+) -> None:
     overlaps = speaker_leakage(rows_by_split)
     if overlaps:
         summary = ", ".join(f"{pair}={len(ids)}" for pair, ids in overlaps.items())
@@ -531,7 +829,9 @@ def load_fleurs_splits(
             for split in requested
         }
     )
-    return dataset.cast_column("audio", Audio(sampling_rate=sampling_rate, decode=decode_audio))
+    return dataset.cast_column(
+        "audio", Audio(sampling_rate=sampling_rate, decode=decode_audio)
+    )
 
 
 def load_naija_split(
@@ -545,7 +845,9 @@ def load_naija_split(
     except ImportError as exc:  # pragma: no cover
         raise RuntimeError("datasets is required to load NaijaS2ST") from exc
     dataset = load_dataset(NAIJA_DATASET_ID, "default", split=split, revision=revision)
-    return dataset.cast_column("audio", Audio(sampling_rate=sampling_rate, decode=False))
+    return dataset.cast_column(
+        "audio", Audio(sampling_rate=sampling_rate, decode=False)
+    )
 
 
 def pair_naija_dataset(
@@ -807,7 +1109,9 @@ def iter_dataset_parquet_metadata(
         import fsspec
         from pyarrow import parquet
     except ImportError as exc:  # pragma: no cover - datasets installs both
-        raise RuntimeError("fsspec and pyarrow are required for metadata audit") from exc
+        raise RuntimeError(
+            "fsspec and pyarrow are required for metadata audit"
+        ) from exc
     columns = [
         "audio.path",
         "user_id",
@@ -823,10 +1127,13 @@ def iter_dataset_parquet_metadata(
         "volume_db",
         "split",
     ]
+
     def read_file(item: Mapping[str, Any]) -> tuple[str, list[dict[str, Any]]]:
         url = str(item["url"])
         filename = str(item.get("filename") or url.rsplit("/", 1)[-1])
-        with fsspec.open(url, "rb", block_size=1 << 20, cache_type="readahead") as handle:
+        with fsspec.open(
+            url, "rb", block_size=1 << 20, cache_type="readahead"
+        ) as handle:
             table = parquet.ParquetFile(handle).read(columns=columns)
         return filename, table.to_pylist()
 
@@ -942,22 +1249,13 @@ def build_pairing_manifest(
 
 def write_pairing_manifest(manifest: Mapping[str, Any], output_dir: str | Path) -> Path:
     """Validate and write manifest metadata next to ignored pairing JSONL files."""
-    required = {
-        "artifact_schema_version",
-        "generated_at",
-        "git_commit",
-        "dataset_id",
-        "dataset_revision",
-        "split_policy",
-        "seed",
-        "max_duration_seconds",
-        "splits",
-    }
-    missing = sorted(required - set(manifest))
+    missing = sorted(set(PAIRING_MANIFEST_REQUIRED_FIELDS) - set(manifest))
     if missing:
         raise ValueError(f"Data manifest is missing required fields: {missing}")
     directory = Path(output_dir)
     directory.mkdir(parents=True, exist_ok=True)
     path = directory / "manifest.json"
-    path.write_text(json.dumps(dict(manifest), indent=2, ensure_ascii=False), encoding="utf-8")
+    path.write_text(
+        json.dumps(dict(manifest), indent=2, ensure_ascii=False), encoding="utf-8"
+    )
     return path

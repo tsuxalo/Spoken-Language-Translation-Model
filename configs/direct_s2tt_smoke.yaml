@@ -13,6 +13,9 @@ dataset:
   max_duration_seconds: 30.0
   derive_validation_from_train: true
   validation_fraction: 0.1
+  pairing_artifacts_dir: artifacts/data/naija_s2st
+  require_pairing_artifacts: false
+  tracked_audit_path: reports/naija_s2st_audit_summary.json
   max_train_samples: 16
   max_validation_samples: 8
 model:

@@ -4,6 +4,7 @@ import unittest
 from pathlib import Path
 
 from hausa_s2tt.config import ExperimentConfig, experiment_from_dict, load_config
+from hausa_s2tt.direct_s2tt import assert_matched_direct_configs
 from hausa_s2tt.hardware import select_precision
 from hausa_s2tt.training import apply_efficiency_strategy
 
@@ -129,6 +130,22 @@ class ConfigHardwareTests(unittest.TestCase):
         partial = apply_efficiency_strategy(FakeModel(), partial_config)
         self.assertFalse(partial.model.encoder.layers[0].values[0].requires_grad)
         self.assertTrue(partial.model.encoder.layers[1].values[0].requires_grad)
+
+    def test_direct_pilot_configs_are_matched_except_initialization_identity(self):
+        config_dir = Path(__file__).resolve().parents[1] / "configs"
+        base = load_config(config_dir / "direct_s2tt_pilot_base.yaml")
+        from_asr = load_config(config_dir / "direct_s2tt_pilot_from_asr.yaml")
+        self.assertEqual(assert_matched_direct_configs(base, from_asr), {})
+        self.assertEqual(
+            assert_matched_direct_configs(
+                load_config(config_dir / "direct_s2tt_full.yaml"),
+                load_config(config_dir / "direct_s2tt_from_asr.yaml"),
+            ),
+            {},
+        )
+        from_asr.training.learning_rate *= 2
+        with self.assertRaisesRegex(ValueError, "learning_rate"):
+            assert_matched_direct_configs(base, from_asr)
 
 
 if __name__ == "__main__":
