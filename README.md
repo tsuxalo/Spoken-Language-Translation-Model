@@ -1,6 +1,6 @@
 # Hausa→English Speech-to-Text Translation
 
-This repository is my reproducible research pipeline for comparing four distinct systems:
+This repository is our reproducible research pipeline for comparing four distinct systems:
 
 | System | Input → output | Role |
 |---|---|---|
