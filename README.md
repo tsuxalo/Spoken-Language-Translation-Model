@@ -21,6 +21,19 @@ The implementation is complete and smoke-tested. The research result is still **
 
 See [IMPLEMENTATION_REPORT.md](reports/IMPLEMENTATION_REPORT.md), [EXPERIMENT_COMPARISON.md](reports/EXPERIMENT_COMPARISON.md), and [SOURCE_VERIFICATION.md](reports/SOURCE_VERIFICATION.md) for evidence and limitations.
 
+## Notebook workflow
+
+The original monolithic [capstone demo](capstone_demo.ipynb) is being decomposed into four focused notebooks with explicit artifact handoffs and held-out-data boundaries. The complete execution order and interface contract are in [notebooks/README.md](notebooks/README.md).
+
+| Notebook | Status | Responsibility |
+|---|---|---|
+| [00 — Data loading and preprocessing](notebooks/00_data_loading_preprocessing.ipynb) | Available | Revision checks, tracked audits, Hausa-English alignment, rejection accounting, speaker-safe splitting, audio/text preprocessing, and durable artifacts |
+| 01 — ASR and cascade | Planned; file not yet created | Hausa ASR diagnostics and Hausa ASR → NLLB English translation |
+| 02 — Direct S2TT training | Planned; file not yet created | Whisper training on genuine aligned English targets, checkpoints, and compute telemetry |
+| 03 — Final evaluation and submission | Planned; file not yet created | Protected held-out comparison of frozen zero-shot, cascade, and direct systems |
+
+Notebook 00's default path reads checked-in audits, runs deterministic small examples, and downloads at most one short public NaijaS2ST **train** clip. Full metadata audit, full dataset construction, and artifact writing are explicit opt-ins. NaijaS2ST official dev targets remain reserved for Notebook 03.
+
 ## Measured data audit
 
 NaijaS2ST revision `898f51582750fe244693794f22e3f4b32c5baf95` was audited through metadata-only Parquet range reads on 2026-08-07. Audio bytes were not downloaded for the complete audit.
@@ -120,6 +133,8 @@ Ignored runtime outputs live under `artifacts/`; checkpoints, model binaries, da
 
 [capstone_demo.ipynb](capstone_demo.ipynb) is the 17-section graduate-project workflow. Start with a fresh GPU runtime, choose an explicit source mode in the setup cell, and run hardware detection. Git mode requires `REPO_REF` to exist remotely; until this local branch is pushed or merged, use archive-upload mode with a source ZIP made from this checkout. Use the marked **FAST DEMO** cells first, and run **EXPENSIVE TRAINING** only after the pilot estimate is acceptable. Colab accelerator type and price are never assumed.
 
+For the decomposed data workflow, open [Notebook 00](notebooks/00_data_loading_preprocessing.ipynb) after its branch is published. Its setup handles a missing checkout, safely fast-forwards a clean checkout, stops on a dirty checkout, installs the repository editable, and verifies that imports resolve to this checkout. The safe flags are documented in [notebooks/README.md](notebooks/README.md).
+
 Create the unpublished-source archive from a committed checkout with:
 
 ```bash
@@ -140,6 +155,7 @@ FLEURS and NaijaS2ST are CC BY 4.0. The published Hausa ASR checkpoint reports A
 - `scripts/`: replayable structural validation utilities.
 - `reports/`: audit, comparison, ethics, source verification, and human-evaluation materials.
 - `model_cards/`: honest drafts for future ASR-v2 and direct-S2TT checkpoints.
+- `notebooks/`: decomposed, ordered research notebooks and their artifact interfaces.
 - Root Python files: backward-compatible wrappers around installed commands.
 
 The most valuable next experiment is a hardware-matched LoRA pilot comparing initialization from `openai/whisper-small` versus the Hausa ASR checkpoint on the same speaker-safe NaijaS2ST validation set.
