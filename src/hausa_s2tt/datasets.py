@@ -747,21 +747,21 @@ def iter_dataset_viewer_filtered_rows(
     url = "https://datasets-server.huggingface.co/filter?" + urllib.parse.urlencode(
         parameters
     )
-    for attempt in range(6):
+    for attempt in range(3):
         try:
-            with urllib.request.urlopen(url, timeout=60) as response:
+            with urllib.request.urlopen(url, timeout=30) as response:
                 payload = json.load(response)
             break
         except urllib.error.HTTPError as exc:
             if exc.code != 429 and exc.code < 500:
                 raise
-            if attempt == 5:
+            if attempt == 2:
                 raise
             retry_after = exc.headers.get("Retry-After")
             delay = float(retry_after) if retry_after else min(2**attempt, 30)
             time.sleep(delay)
         except (TimeoutError, urllib.error.URLError):
-            if attempt == 5:
+            if attempt == 2:
                 raise
             time.sleep(min(2**attempt, 30))
     for item in payload.get("rows", []):
