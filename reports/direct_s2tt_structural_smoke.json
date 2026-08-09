@@ -73,5 +73,51 @@
       "path": "artifacts/direct_s2tt/smoke/training-20260809T173232Z/checkpoint/adapter_model.safetensors",
       "sha256": "0fc7831d004cda16cd458323275d86eca2df0655ec8212e334a756cd795a4d6a"
     }
+  },
+  "shared_train_experiment_smoke": {
+    "status": "passed",
+    "purpose": "Bounded shared Trainer validation-generation and artifact-writing integration test; no translation-quality claim",
+    "run_date_utc": "2026-08-09T17:41:52.234385+00:00",
+    "git_commit": "b96e0ad42581e37a426bcd2b802ef26d3930a181",
+    "model_id": "openai/whisper-tiny",
+    "model_revision": "169d4a4341b33bc18d8881c4b69c2e104e1cc0af",
+    "data": "three synthetic one-second training tones and one speaker-disjoint synthetic validation tone with English target_text",
+    "optimizer_steps": 3,
+    "validation_examples": 1,
+    "validation_predictions_saved": true,
+    "trainer_history_saved": true,
+    "step_timing_saved": true,
+    "best_checkpoint_selected_from_validation": true,
+    "parameters": {
+      "total": 37834368,
+      "trainable": 73728,
+      "trainable_fraction": 0.0019487044160483929
+    },
+    "runtime": {
+      "model_startup_seconds": 8.354314500000328,
+      "training_context_seconds": 3.6789572999987286,
+      "checkpoint_writing_seconds": 0.2762256999849342,
+      "final_validation_prediction_seconds": 0.3127544999879319,
+      "gpu_count": 0,
+      "gpu_hours": 0.0,
+      "peak_vram_bytes": null
+    },
+    "best_checkpoint_size_bytes": 4894562,
+    "scientific_quality_claim": "none",
+    "official_dev_evaluated": false,
+    "artifacts": {
+      "training_summary": {
+        "path": "artifacts/direct_s2tt/train_experiment_smoke/training-20260809T174148Z/training_summary.json",
+        "sha256": "4b92134d3e80c82e4caebb292955d7b3ebf390577fb8606b2c0b78f12f9601e4"
+      },
+      "run_manifest": {
+        "path": "artifacts/direct_s2tt/train_experiment_smoke/training-20260809T174148Z/run_manifest.json",
+        "sha256": "0bb6e369f946a4dce30c273634de72128479105fe71439611baa5883b4be34fb"
+      },
+      "validation_predictions": {
+        "path": "artifacts/direct_s2tt/train_experiment_smoke/training-20260809T174148Z/validation/predictions.jsonl",
+        "sha256": "3bf574c82130219d558bf8ba48a6795b4489689762b3ed3d1e09f5f65ac79f2d"
+      }
+    }
   }
 }
