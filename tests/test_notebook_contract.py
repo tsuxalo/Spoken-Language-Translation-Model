@@ -24,7 +24,7 @@ class NotebookContractTests(unittest.TestCase):
         code = "\n".join(cell.source for cell in notebook.cells if cell.cell_type == "code")
         for section in range(1, 23):
             self.assertIn(f"{section}.", markdown)
-        self.assertIn('REPO_REF = "feature/data-preprocessing-notebook"', code)
+        self.assertIn('REPO_REF = "feature/direct-s2tt"', code)
         self.assertIn("RUN_FULL_METADATA_AUDIT = False", code)
         self.assertIn("BUILD_FULL_TRAINING_DATASET = False", code)
         self.assertIn("WRITE_ARTIFACTS = False", code)

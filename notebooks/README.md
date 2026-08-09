@@ -43,6 +43,6 @@ Notebook 00 may show only the checked-in aggregate NaijaS2ST `dev` audit. Notebo
 
 ## Colab
 
-After the branch is published, open Notebook 00 in Colab, select a Python runtime, and run from the top. Its setup cell clones or safely fast-forwards `feature/data-preprocessing-notebook`, performs an editable install, evicts stale imports, and verifies the package path. After merge, update `REPO_REF` to `main`.
+After the branch is published, open Notebook 00 in Colab, select a Python runtime, and run from the top. Its setup cell clones or safely fast-forwards `feature/direct-s2tt`, performs an editable install, evicts stale imports, and verifies the package path. After merge, update `REPO_REF` to `main`.
 
 Leave `RUN_FULL_METADATA_AUDIT`, `BUILD_FULL_TRAINING_DATASET`, and `WRITE_ARTIFACTS` false for the safe path. Enable them only after reviewing the storage/runtime note in Section 19.
