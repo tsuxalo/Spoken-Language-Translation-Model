@@ -143,3 +143,7 @@ FLEURS and NaijaS2ST are CC BY 4.0. The published Hausa ASR checkpoint reports A
 - Root Python files: backward-compatible wrappers around installed commands.
 
 The most valuable next experiment is a hardware-matched LoRA pilot comparing initialization from `openai/whisper-small` versus the Hausa ASR checkpoint on the same speaker-safe NaijaS2ST validation set.
+
+## Group project building notes
+
+The team plans separate notebooks for the Hausa ASR diagnostic, the NLLB cascade, and the direct speech-encoder-to-English-text system, followed by a final comparison notebook. The final submission should compare architectures and outputs without conflating ASR with translation. Hausa is the current focus because usable data are available; extending the approach to other spoken languages remains a longer-term goal. Hausa's tonal and dialectal variation should be considered when interpreting results.
