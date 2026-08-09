@@ -57,14 +57,10 @@ class PairingTests(unittest.TestCase):
         self.assertIn("MISSING", audit.missing_target_ids)
         self.assertIn("LONG", audit.invalid_source_ids)
         self.assertEqual(audit.rejected_records, 3)
-        self.assertEqual(
-            audit.rejection_reasons,
-            {
-                "conflicting_english_targets": 1,
-                "duration_over_limit": 1,
-                "missing_english_target": 1,
-            },
-        )
+        self.assertEqual(audit.rejection_reasons["conflicting_english_targets"], 1)
+        self.assertEqual(audit.rejection_reasons["duration_over_limit"], 1)
+        self.assertEqual(audit.rejection_reasons["missing_english_target"], 1)
+        self.assertEqual(audit.rejection_reasons["missing_audio_reference"], 0)
 
     def test_speaker_split_is_deterministic_and_leak_free(self):
         rows = [

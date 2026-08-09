@@ -218,6 +218,8 @@ def load_training_data(config: ExperimentConfig) -> tuple[Any, Any, str, dict[st
         raw_train,
         split=config.dataset.train_split,
         max_duration_seconds=config.dataset.max_duration_seconds,
+        dataset_id=config.dataset.id,
+        dataset_revision=config.dataset.revision,
     )
     derived = split_dataset_by_speaker(
         paired_train,

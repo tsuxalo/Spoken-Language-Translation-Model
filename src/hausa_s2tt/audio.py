@@ -4,6 +4,8 @@ from __future__ import annotations
 
 import io
 import math
+import urllib.parse
+import urllib.request
 from collections.abc import Iterator
 from pathlib import Path
 from typing import Any
@@ -71,15 +73,15 @@ def validate_audio(
     return array.astype(np.float32, copy=False)
 
 
-def load_audio(
+def decode_audio(
     value: str | Path | bytes | dict[str, Any],
     *,
-    target_rate: int = 16_000,
-    max_duration_seconds: float | None = None,
+    default_sample_rate: int = 16_000,
+    max_download_bytes: int = 50_000_000,
 ) -> tuple[np.ndarray, int]:
-    """Load common Hugging Face or filesystem audio representations."""
+    """Decode audio while preserving its original channel layout and sample rate."""
     if isinstance(value, dict) and value.get("array") is not None:
-        source_rate = int(value.get("sampling_rate") or target_rate)
+        source_rate = int(value.get("sampling_rate") or default_sample_rate)
         samples = np.asarray(value["array"])
     else:
         try:
@@ -91,8 +93,25 @@ def load_audio(
                 source = io.BytesIO(value["bytes"])
             elif value.get("path"):
                 source = value["path"]
+            elif value.get("src"):
+                url = str(value["src"])
+                parsed = urllib.parse.urlsplit(url)
+                if parsed.scheme != "https":
+                    raise AudioValidationError("Remote audio must use HTTPS")
+                with urllib.request.urlopen(url, timeout=60) as response:
+                    content_length = int(response.headers.get("Content-Length") or 0)
+                    if content_length > max_download_bytes:
+                        raise AudioValidationError(
+                            f"Remote audio exceeds {max_download_bytes} bytes"
+                        )
+                    payload = response.read(max_download_bytes + 1)
+                if len(payload) > max_download_bytes:
+                    raise AudioValidationError(
+                        f"Remote audio exceeds {max_download_bytes} bytes"
+                    )
+                source = io.BytesIO(payload)
             else:
-                raise AudioValidationError("Audio mapping has no array, bytes, or path")
+                raise AudioValidationError("Audio mapping has no array, bytes, path, or src")
         elif isinstance(value, bytes):
             source = io.BytesIO(value)
         else:
@@ -101,6 +120,29 @@ def load_audio(
             samples, source_rate = sf.read(source, always_2d=False)
         except Exception as exc:
             raise AudioValidationError(f"Unable to decode audio: {exc}") from exc
+    array = np.asarray(samples)
+    if array.size == 0:
+        raise AudioValidationError("Audio is empty")
+    if not np.isfinite(array).all():
+        raise AudioValidationError("Audio contains NaN or infinite samples")
+    if int(source_rate) <= 0:
+        raise AudioValidationError("Sample rate must be positive")
+    return array, int(source_rate)
+
+
+def load_audio(
+    value: str | Path | bytes | dict[str, Any],
+    *,
+    target_rate: int = 16_000,
+    max_duration_seconds: float | None = None,
+    max_download_bytes: int = 50_000_000,
+) -> tuple[np.ndarray, int]:
+    """Decode, convert to mono, resample, and validate common audio values."""
+    samples, source_rate = decode_audio(
+        value,
+        default_sample_rate=target_rate,
+        max_download_bytes=max_download_bytes,
+    )
     mono = validate_audio(np.asarray(samples), int(source_rate))
     resampled = resample_audio(mono, int(source_rate), target_rate)
     validated = validate_audio(

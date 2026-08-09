@@ -5,6 +5,7 @@ from __future__ import annotations
 import json
 import math
 import random
+import subprocess
 import time
 import urllib.error
 import urllib.parse
@@ -12,7 +13,9 @@ import urllib.request
 from collections import Counter, defaultdict
 from collections.abc import Iterable, Iterator, Mapping, Sequence
 from concurrent.futures import ThreadPoolExecutor
+from copy import deepcopy
 from dataclasses import asdict, dataclass, field
+from datetime import UTC, datetime
 from pathlib import Path
 from typing import Any
 
@@ -21,6 +24,37 @@ from .revisions import (
     FLEURS_REVISION,
     NAIJA_DATASET_ID,
     NAIJA_REVISION,
+)
+
+ARTIFACT_SCHEMA_VERSION = "1.0"
+PAIRING_REJECTION_REASONS = (
+    "missing_audio_reference",
+    "missing_speaker_id",
+    "missing_alignment_key",
+    "invalid_duration",
+    "nonpositive_duration",
+    "duration_over_limit",
+    "missing_english_target",
+    "conflicting_english_targets",
+    "duplicate_source_record",
+    "invalid_target_record",
+)
+PAIRING_ARTIFACT_REQUIRED_FIELDS = (
+    "artifact_schema_version",
+    "audio_locator",
+    "source_text",
+    "target_text",
+    "duration",
+    "speaker_id",
+    "split",
+    "source_language",
+    "target_language",
+    "source_text_id",
+    "target_text_ids",
+    "alignment_key",
+    "dataset_row_index",
+    "source_dataset",
+    "dataset_revision",
 )
 
 
@@ -38,7 +72,9 @@ class PairingAudit:
     duplicate_source_text_ids: int = 0
     duplicate_target_text_ids: int = 0
     rejected_records: int = 0
-    rejection_reasons: dict[str, int] = field(default_factory=dict)
+    rejection_reasons: dict[str, int] = field(
+        default_factory=lambda: {reason: 0 for reason in PAIRING_REJECTION_REASONS}
+    )
     invalid_target_records: int = 0
     source_speakers: int = 0
     source_audio_hours: float = 0.0
@@ -88,12 +124,135 @@ def _valid_audio_reference(audio: Any) -> bool:
     if isinstance(audio, (str, Path, bytes)):
         return bool(audio)
     if isinstance(audio, Mapping):
-        return any(audio.get(key) is not None for key in ("array", "bytes", "path", "src"))
+        array = audio.get("array")
+        if array is not None:
+            return int(getattr(array, "size", 1)) > 0
+        if audio.get("bytes"):
+            return True
+        return any(str(audio.get(key) or "").strip() for key in ("path", "src"))
     return audio is not None
 
 
 def _clean_target(text: Any) -> str:
     return " ".join(str(text or "").split())
+
+
+def _stable_relative_audio_path(audio: Any) -> str | None:
+    """Return a safe relative path, never a local absolute path or remote URL."""
+    if isinstance(audio, Mapping):
+        value = audio.get("path")
+    elif isinstance(audio, (str, Path)):
+        value = audio
+    else:
+        return None
+    path = str(value or "").strip().replace("\\", "/")
+    parsed = urllib.parse.urlsplit(path)
+    if (
+        not path
+        or parsed.scheme
+        or parsed.netloc
+        or parsed.query
+        or parsed.fragment
+        or Path(path).is_absolute()
+        or ".." in Path(path).parts
+    ):
+        return None
+    return path
+
+
+def _stable_parquet_reference(value: Any) -> str | None:
+    """Reduce a Parquet URL/path to a non-secret shard name when possible."""
+    text = str(value or "").strip().replace("\\", "/")
+    if not text:
+        return None
+    parsed = urllib.parse.urlsplit(text)
+    candidate = parsed.path.rsplit("/", 1)[-1] if parsed.scheme else text
+    lowered = candidate.casefold()
+    if not candidate or any(term in lowered for term in ("token=", "signature=", "expires=")):
+        return None
+    return candidate
+
+
+def build_stable_audio_locator(
+    row: Mapping[str, Any],
+    *,
+    dataset_id: str,
+    dataset_revision: str,
+    split: str,
+    row_index: int,
+) -> dict[str, Any]:
+    """Describe dataset-backed audio without persisting audio data or signed URLs."""
+    if not dataset_revision:
+        raise ValueError("A nonempty immutable dataset_revision is required")
+    locator: dict[str, Any] = {
+        "source_dataset": dataset_id,
+        "dataset_revision": dataset_revision,
+        "split": split,
+        "dataset_row_index": int(row_index),
+    }
+    parquet_file = _stable_parquet_reference(row.get("_parquet_file"))
+    if parquet_file:
+        locator["dataset_parquet_file"] = parquet_file
+    relative_path = _stable_relative_audio_path(row.get("audio"))
+    if relative_path:
+        locator["relative_audio_path"] = relative_path
+    return locator
+
+
+def validate_pairing_artifact(record: Mapping[str, Any]) -> None:
+    """Reject incomplete or unsafe JSONL records before they reach disk."""
+    missing = [field for field in PAIRING_ARTIFACT_REQUIRED_FIELDS if field not in record]
+    if missing:
+        raise ValueError(f"Pairing artifact is missing required fields: {missing}")
+    if "audio" in record:
+        raise ValueError("Pairing artifacts must use audio_locator, not an audio payload")
+    if record.get("artifact_schema_version") != ARTIFACT_SCHEMA_VERSION:
+        raise ValueError("Unexpected pairing artifact schema version")
+    if not record.get("dataset_revision"):
+        raise ValueError("Pairing artifact dataset_revision must be nonempty")
+
+    def visit(value: Any, path: str) -> None:
+        if isinstance(value, (bytes, bytearray, memoryview)):
+            raise TypeError(f"Raw audio/binary data is forbidden at {path}")
+        value_type = type(value)
+        if value_type.__module__.startswith("numpy") and value_type.__name__ == "ndarray":
+            raise ValueError(f"NumPy arrays are forbidden at {path}")
+        if isinstance(value, Mapping):
+            for key, child in value.items():
+                lowered = str(key).casefold()
+                if any(term in lowered for term in ("token", "signature", "authorization")):
+                    raise ValueError(f"Sensitive locator field is forbidden at {path}.{key}")
+                visit(child, f"{path}.{key}")
+        elif isinstance(value, (list, tuple)):
+            if len(value) > 1_024:
+                raise ValueError(f"Large arrays/sequences are forbidden at {path}")
+            for index, child in enumerate(value):
+                visit(child, f"{path}[{index}]")
+        elif isinstance(value, str):
+            parsed = urllib.parse.urlsplit(value)
+            query_names = {name.casefold() for name, _ in urllib.parse.parse_qsl(parsed.query)}
+            if parsed.scheme in {"http", "https"} and (
+                parsed.query
+                or query_names
+                & {"token", "x-amz-signature", "x-amz-credential", "expires", "signature"}
+            ):
+                raise ValueError(f"Signed or expiring URL is forbidden at {path}")
+
+    visit(record, "record")
+
+
+def pairing_artifact_record(pair: Mapping[str, Any]) -> dict[str, Any]:
+    """Select the durable, versioned representation consumed by later notebooks."""
+    fields = list(PAIRING_ARTIFACT_REQUIRED_FIELDS) + [
+        "source_text_original",
+        "target_text_original",
+        "source_text_whitespace_normalized",
+        "target_text_whitespace_normalized",
+        "dataset_parquet_file",
+    ]
+    record = {name: deepcopy(pair[name]) for name in fields if name in pair}
+    validate_pairing_artifact(record)
+    return record
 
 
 def align_naija_rows(
@@ -103,6 +262,8 @@ def align_naija_rows(
     source_language: str = "hausa",
     target_language: str = "english",
     max_duration_seconds: float = 30.0,
+    dataset_id: str = NAIJA_DATASET_ID,
+    dataset_revision: str = NAIJA_REVISION,
 ) -> tuple[list[dict[str, Any]], PairingAudit]:
     """Pair every valid Hausa recording with one unambiguous English text.
 
@@ -111,7 +272,13 @@ def align_naija_rows(
     one canonical key are allowed only when their reference text agrees. Each
     Hausa recording remains a distinct training example.
     """
-    materialized = [dict(row) for row in rows]
+    if not dataset_revision:
+        raise ValueError("NaijaS2ST pairing requires an immutable dataset_revision")
+    materialized = []
+    for index, source_row in enumerate(rows):
+        row = dict(source_row)
+        row.setdefault("_row_idx", index)
+        materialized.append(row)
     audit = PairingAudit(split=split, total_rows=len(materialized))
     source_name = canonical_language(source_language)
     target_name = canonical_language(target_language)
@@ -124,14 +291,15 @@ def align_naija_rows(
     audit.source_rows = len(source_rows)
     audit.target_rows = len(target_rows)
 
-    targets: dict[str, set[tuple[str, str]]] = defaultdict(set)
+    targets: dict[str, set[tuple[str, str, str]]] = defaultdict(set)
     target_id_counts: Counter[str] = Counter()
     for row in target_rows:
         text_id = str(row.get("text_id") or "").strip()
         key = alignment_key(text_id, row.get("language"))
-        text = _clean_target(row.get("text"))
+        original_text = str(row.get("text") or "")
+        text = _clean_target(original_text)
         if key and text:
-            targets[key].add((text_id, text))
+            targets[key].add((text_id, text, original_text))
             target_id_counts[key] += 1
         else:
             audit.invalid_target_records += 1
@@ -139,7 +307,7 @@ def align_naija_rows(
     audit.conflicting_target_ids = sorted(
         key
         for key, variants in targets.items()
-        if len({text for _, text in variants}) > 1
+        if len({text for _, text, _ in variants}) > 1
     )
 
     source_id_counts: Counter[str] = Counter(
@@ -147,7 +315,7 @@ def align_naija_rows(
     )
     audit.duplicate_source_text_ids = sum(count > 1 for count in source_id_counts.values())
     seen_records: set[tuple[str, str, str]] = set()
-    rejection_reasons: Counter[str] = Counter()
+    rejection_reasons: Counter[str] = Counter({reason: 0 for reason in PAIRING_REJECTION_REASONS})
     pairs: list[dict[str, Any]] = []
     durations: list[float] = []
     speakers: set[str] = set()
@@ -192,18 +360,39 @@ def align_naija_rows(
             audit.rejected_records += 1
             rejection_reasons["missing_english_target"] += 1
             continue
-        target_texts = {text for _, text in variants}
+        target_texts = {text for _, text, _ in variants}
         if len(target_texts) != 1:
             audit.rejected_records += 1
             rejection_reasons["conflicting_english_targets"] += 1
             continue
-        target_text = next(iter(target_texts))
-        target_ids = sorted(target_id for target_id, _ in variants)
+        target_text_clean = next(iter(target_texts))
+        matching_targets = sorted(
+            (target_id, original)
+            for target_id, clean, original in variants
+            if clean == target_text_clean
+        )
+        target_ids = sorted({target_id for target_id, _ in matching_targets})
+        target_text_original = matching_targets[0][1]
+        source_text_original = str(row.get("text") or "")
+        row_index = int(row["_row_idx"])
+        audio_locator = build_stable_audio_locator(
+            row,
+            dataset_id=dataset_id,
+            dataset_revision=dataset_revision,
+            split=split,
+            row_index=row_index,
+        )
+        parquet_file = audio_locator.get("dataset_parquet_file")
         pairs.append(
             {
-                "audio": row["audio"],
-                "source_text": _clean_target(row.get("text")),
-                "target_text": target_text,
+                "artifact_schema_version": ARTIFACT_SCHEMA_VERSION,
+                "audio_locator": audio_locator,
+                "source_text": source_text_original,
+                "target_text": target_text_original,
+                "source_text_original": source_text_original,
+                "target_text_original": target_text_original,
+                "source_text_whitespace_normalized": _clean_target(source_text_original),
+                "target_text_whitespace_normalized": target_text_clean,
                 "duration": duration,
                 "speaker_id": speaker,
                 "split": split,
@@ -213,16 +402,20 @@ def align_naija_rows(
                 "source_text_id": text_id,
                 "target_text_ids": target_ids,
                 "alignment_key": key,
-                "dataset_row_index": row.get("_row_idx"),
-                "dataset_parquet_file": row.get("_parquet_file"),
-                "source_dataset": NAIJA_DATASET_ID,
+                "dataset_row_index": row_index,
+                "dataset_parquet_file": parquet_file,
+                "source_dataset": dataset_id,
+                "dataset_revision": dataset_revision,
             }
         )
         durations.append(duration)
         speakers.add(speaker)
 
     audit.paired_examples = len(pairs)
-    audit.rejection_reasons = dict(sorted(rejection_reasons.items()))
+    rejection_reasons["invalid_target_record"] = audit.invalid_target_records
+    audit.rejection_reasons = {
+        reason: rejection_reasons[reason] for reason in PAIRING_REJECTION_REASONS
+    }
     audit.source_speakers = len(speakers)
     audit.source_audio_hours = sum(durations) / 3600
     if durations:
@@ -355,7 +548,14 @@ def load_naija_split(
     return dataset.cast_column("audio", Audio(sampling_rate=sampling_rate, decode=False))
 
 
-def pair_naija_dataset(dataset: Any, *, split: str, max_duration_seconds: float = 30.0) -> tuple[Any, PairingAudit]:
+def pair_naija_dataset(
+    dataset: Any,
+    *,
+    split: str,
+    max_duration_seconds: float = 30.0,
+    dataset_id: str = NAIJA_DATASET_ID,
+    dataset_revision: str = NAIJA_REVISION,
+) -> tuple[Any, PairingAudit]:
     """Pair a Dataset without materializing its embedded audio bytes in Python."""
     metadata = dataset.remove_columns("audio")
     metadata_rows = (
@@ -370,6 +570,8 @@ def pair_naija_dataset(dataset: Any, *, split: str, max_duration_seconds: float 
         metadata_rows,
         split=split,
         max_duration_seconds=max_duration_seconds,
+        dataset_id=dataset_id,
+        dataset_revision=dataset_revision,
     )
     indices = [int(pair["dataset_row_index"]) for pair in pairs]
     paired = dataset.select(indices)
@@ -383,7 +585,10 @@ def pair_naija_dataset(dataset: Any, *, split: str, max_duration_seconds: float 
         "target_text_ids": [pair["target_text_ids"] for pair in pairs],
         "alignment_key": [pair["alignment_key"] for pair in pairs],
         "dataset_row_index": indices,
-        "source_dataset": [NAIJA_DATASET_ID] * len(pairs),
+        "audio_locator": [pair["audio_locator"] for pair in pairs],
+        "artifact_schema_version": [ARTIFACT_SCHEMA_VERSION] * len(pairs),
+        "source_dataset": [dataset_id] * len(pairs),
+        "dataset_revision": [dataset_revision] * len(pairs),
     }
     for name, values in additions.items():
         paired = paired.add_column(name, values)
@@ -509,6 +714,62 @@ def iter_dataset_viewer_rows(
             yielded += 1
 
 
+def iter_dataset_viewer_filtered_rows(
+    split: str,
+    *,
+    where: str,
+    dataset_id: str = NAIJA_DATASET_ID,
+    config: str = "default",
+    orderby: str | None = None,
+    limit: int = 10,
+) -> Iterator[dict[str, Any]]:
+    """Fetch a small filtered Viewer slice for runtime inspection, not provenance.
+
+    Dataset Viewer audio fields can contain temporary signed URLs. Callers may
+    decode those URLs during the current process, but accepted artifact records
+    must be built through :func:`align_naija_rows`, which replaces them with
+    revision-pinned dataset coordinates.
+    """
+    if not where.strip():
+        raise ValueError("Dataset Viewer filter requires a nonempty where clause")
+    if not 1 <= limit <= 100:
+        raise ValueError("Dataset Viewer filtered limit must be in [1, 100]")
+    parameters: dict[str, Any] = {
+        "dataset": dataset_id,
+        "config": config,
+        "split": split,
+        "where": where,
+        "offset": 0,
+        "length": limit,
+    }
+    if orderby:
+        parameters["orderby"] = orderby
+    url = "https://datasets-server.huggingface.co/filter?" + urllib.parse.urlencode(
+        parameters
+    )
+    for attempt in range(6):
+        try:
+            with urllib.request.urlopen(url, timeout=60) as response:
+                payload = json.load(response)
+            break
+        except urllib.error.HTTPError as exc:
+            if exc.code != 429 and exc.code < 500:
+                raise
+            if attempt == 5:
+                raise
+            retry_after = exc.headers.get("Retry-After")
+            delay = float(retry_after) if retry_after else min(2**attempt, 30)
+            time.sleep(delay)
+        except (TimeoutError, urllib.error.URLError):
+            if attempt == 5:
+                raise
+            time.sleep(min(2**attempt, 30))
+    for item in payload.get("rows", []):
+        row = dict(item.get("row", item))
+        row["_row_idx"] = item.get("row_idx")
+        yield row
+
+
 def iter_dataset_parquet_metadata(
     split: str,
     *,
@@ -595,21 +856,108 @@ def iter_dataset_parquet_metadata(
 
 def write_pairing_artifacts(
     pairs: Sequence[Mapping[str, Any]], audit: PairingAudit, output_dir: str | Path
-) -> None:
+) -> dict[str, str]:
     directory = Path(output_dir)
     directory.mkdir(parents=True, exist_ok=True)
     metadata_path = directory / f"{audit.split}.jsonl"
     with metadata_path.open("w", encoding="utf-8") as handle:
         for pair in pairs:
-            serializable = dict(pair)
-            audio = serializable.get("audio")
-            if isinstance(audio, Mapping):
-                serializable["audio"] = {
-                    key: value
-                    for key, value in audio.items()
-                    if key in {"path", "sampling_rate"}
-                }
+            serializable = pairing_artifact_record(pair)
             handle.write(json.dumps(serializable, ensure_ascii=False) + "\n")
-    (directory / f"{audit.split}_audit.json").write_text(
+    audit_path = directory / f"{audit.split}_audit.json"
+    audit_path.write_text(
         json.dumps(audit.to_dict(), indent=2, ensure_ascii=False), encoding="utf-8"
     )
+    return {"examples": str(metadata_path), "audit": str(audit_path)}
+
+
+def load_revision_matched_audit(
+    path: str | Path,
+    *,
+    expected_dataset_id: str,
+    expected_dataset_revision: str,
+) -> dict[str, Any]:
+    """Load a tracked audit only when its resource identity matches the code."""
+    audit_path = Path(path)
+    payload = json.loads(audit_path.read_text(encoding="utf-8"))
+    actual_id = payload.get("dataset")
+    actual_revision = payload.get("dataset_revision")
+    if actual_id != expected_dataset_id or actual_revision != expected_dataset_revision:
+        raise ValueError(
+            f"Tracked audit provenance mismatch in {audit_path}: expected "
+            f"{expected_dataset_id}@{expected_dataset_revision}, got "
+            f"{actual_id}@{actual_revision}"
+        )
+    return payload
+
+
+def current_git_commit(repository_root: str | Path = ".") -> str:
+    """Return the exact checkout commit for a generated manifest."""
+    result = subprocess.run(
+        ["git", "rev-parse", "HEAD"],
+        cwd=Path(repository_root),
+        check=True,
+        capture_output=True,
+        text=True,
+    )
+    return result.stdout.strip()
+
+
+def build_pairing_manifest(
+    audits: Sequence[PairingAudit],
+    *,
+    git_commit: str,
+    dataset_id: str = NAIJA_DATASET_ID,
+    dataset_revision: str = NAIJA_REVISION,
+    split_policy: str,
+    seed: int,
+    max_duration_seconds: float,
+    generated_at: str | None = None,
+) -> dict[str, Any]:
+    """Build the small metadata contract accompanying ignored JSONL artifacts."""
+    if not git_commit:
+        raise ValueError("git_commit must be recorded in the data manifest")
+    if not dataset_revision:
+        raise ValueError("dataset_revision must be recorded in the data manifest")
+    split_counts = {
+        audit.split: {
+            "accepted": audit.paired_examples,
+            "rejected": audit.rejected_records,
+            "rejection_reasons": audit.rejection_reasons,
+        }
+        for audit in audits
+    }
+    return {
+        "artifact_schema_version": ARTIFACT_SCHEMA_VERSION,
+        "generated_at": generated_at or datetime.now(UTC).isoformat(),
+        "git_commit": git_commit,
+        "dataset_id": dataset_id,
+        "dataset_revision": dataset_revision,
+        "split_policy": split_policy,
+        "seed": seed,
+        "max_duration_seconds": max_duration_seconds,
+        "splits": split_counts,
+    }
+
+
+def write_pairing_manifest(manifest: Mapping[str, Any], output_dir: str | Path) -> Path:
+    """Validate and write manifest metadata next to ignored pairing JSONL files."""
+    required = {
+        "artifact_schema_version",
+        "generated_at",
+        "git_commit",
+        "dataset_id",
+        "dataset_revision",
+        "split_policy",
+        "seed",
+        "max_duration_seconds",
+        "splits",
+    }
+    missing = sorted(required - set(manifest))
+    if missing:
+        raise ValueError(f"Data manifest is missing required fields: {missing}")
+    directory = Path(output_dir)
+    directory.mkdir(parents=True, exist_ok=True)
+    path = directory / "manifest.json"
+    path.write_text(json.dumps(dict(manifest), indent=2, ensure_ascii=False), encoding="utf-8")
+    return path

@@ -13,6 +13,7 @@ from .revisions import (
     FLEURS_REVISION,
     HAUSA_ASR_ID,
     HAUSA_ASR_REVISION,
+    NAIJA_DATASET_ID,
     NAIJA_REVISION,
     NLLB_MODEL_ID,
     NLLB_REVISION,
@@ -26,11 +27,14 @@ from .revisions import (
 def data_main(argv: list[str] | None = None) -> None:
     from .datasets import (
         align_naija_rows,
+        build_pairing_manifest,
+        current_git_commit,
         iter_dataset_parquet_metadata,
         iter_dataset_viewer_rows,
         load_fleurs_splits,
         speaker_leakage,
         write_pairing_artifacts,
+        write_pairing_manifest,
     )
 
     parser = argparse.ArgumentParser(description="Prepare FLEURS or audit NaijaS2ST")
@@ -39,7 +43,12 @@ def data_main(argv: list[str] | None = None) -> None:
     fleurs.add_argument("--output-dir", type=Path, default=Path("data/fleurs"))
     fleurs.add_argument("--revision", default=FLEURS_REVISION)
     naija = subparsers.add_parser("naija", help="Audit NaijaS2ST metadata")
-    naija.add_argument("--output-dir", type=Path, default=Path("data/naija_pairs"))
+    naija.add_argument(
+        "--output-dir",
+        type=Path,
+        default=Path("artifacts/audits/naija_s2st"),
+    )
+    naija.add_argument("--revision", default=NAIJA_REVISION)
     naija.add_argument("--splits", nargs="+", default=["train", "dev"])
     naija.add_argument("--max-rows", type=int, help="Partial smoke audit only")
     naija.add_argument("--workers", type=int, default=2)
@@ -72,6 +81,7 @@ def data_main(argv: list[str] | None = None) -> None:
     else:
         result = {}
         pairs_by_split = {}
+        audits = []
         for split in args.splits:
             started = time.perf_counter()
             if args.source == "parquet":
@@ -86,7 +96,12 @@ def data_main(argv: list[str] | None = None) -> None:
                         split, workers=args.workers, limit=args.max_rows
                     )
                 )
-            pairs, audit = align_naija_rows(rows, split=split)
+            pairs, audit = align_naija_rows(
+                rows,
+                split=split,
+                dataset_id=NAIJA_DATASET_ID,
+                dataset_revision=args.revision,
+            )
             write_pairing_artifacts(pairs, audit, args.output_dir)
             value = audit.to_dict()
             value["audit_wall_seconds"] = time.perf_counter() - started
@@ -95,6 +110,7 @@ def data_main(argv: list[str] | None = None) -> None:
             value["audio_decode_validation"] = "not performed"
             result[split] = value
             pairs_by_split[split] = pairs
+            audits.append(audit)
         overlaps = speaker_leakage(pairs_by_split)
         partial = args.max_rows is not None
         result["cross_split"] = {
@@ -103,6 +119,20 @@ def data_main(argv: list[str] | None = None) -> None:
             "speaker_disjoint": None if partial else not overlaps,
             "partial_audit": partial,
         }
+        manifest = build_pairing_manifest(
+            audits,
+            git_commit=current_git_commit(),
+            dataset_id=NAIJA_DATASET_ID,
+            dataset_revision=args.revision,
+            split_policy=(
+                "official split metadata audit only; project validation is later derived "
+                "speaker-disjoint from official train"
+            ),
+            seed=42,
+            max_duration_seconds=30.0,
+        )
+        manifest_path = write_pairing_manifest(manifest, args.output_dir)
+        result["manifest"] = str(manifest_path)
         (args.output_dir / "dataset_audit.json").write_text(
             json.dumps(result, indent=2, ensure_ascii=False), encoding="utf-8"
         )
@@ -327,7 +357,9 @@ def evaluate_s2tt_main(argv: list[str] | None = None) -> None:
     guard = FinalTestGuard(args.output_dir.parent, args.run_name)
     guard.ensure_unused()
     paired, audit = pair_naija_dataset(
-        load_naija_split("dev", revision=args.dataset_revision), split="dev"
+        load_naija_split("dev", revision=args.dataset_revision),
+        split="dev",
+        dataset_revision=args.dataset_revision,
     )
     runtimes: dict[str, Any] = {}
     if "zero_shot" in args.systems:
