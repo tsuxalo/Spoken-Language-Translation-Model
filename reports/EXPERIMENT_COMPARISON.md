@@ -1,6 +1,10 @@
 # Experimental comparison
 
-Status: **partial** as of 2026-08-07. No common held-out English evaluation has been run. “Not measured” is intentional.
+Status: **partial** as of 2026-08-09. No common held-out English evaluation has been run. “Not measured” is intentional.
+
+Notebook 02 now defines matched development pilots for base-Whisper and Hausa-ASR initialization. Neither pilot has been run, so no initialization winner or measured training improvement is available yet.
+
+The Notebook 02 structural smoke measured only software mechanics: Whisper-tiny LoRA exposed 73,728 trainable of 37,834,368 total parameters; all 48 trainable tensors received finite gradients; a checked frozen tensor was unchanged; adapter, processor, optimizer/scheduler state saved; local adapter reload and translation-mode generation completed. The CPU telemetry context took 1.735 seconds and wrote a 9,141,536-byte checkpoint. These values are not transferable runtime estimates or quality results. Exact provenance and hashes are in [direct_s2tt_structural_smoke.json](direct_s2tt_structural_smoke.json).
 
 ## Held-out results
 

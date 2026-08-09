@@ -2,13 +2,13 @@
 
 ## Status
 
-**Partial.** The complete installable pipeline, dataset pairing audit, CPU-safe tests, opt-in checkpoint smoke, genuine-label three-step training smoke, direct inference smoke, and published-checkpoint cascade smoke are complete. Full ASR-v2 training, full direct-S2TT training, and the common held-out comparison were not run; no final quality metric is claimed.
+**Partial.** The installable pipeline, dataset pairing audit, Notebook 02 direct-training workflow, CPU-safe tests, and opt-in tiny-checkpoint structural smoke are implemented. Matched initialization pilots, full ASR-v2/direct-S2TT training, and the common held-out comparison were not run; no pilot or final quality improvement is claimed.
 
 ## Repository origin and preservation
 
 - Repository: `https://github.com/tsuxalo/Spoken-Language-Translation-Model.git`
-- Audited baseline/`origin/main`: `329254875059600f1b611aabe6ebb7c3e0e1d124`
-- Working branch: `feature/direct-s2tt`
+- Selected technical base: `feature/direct-s2tt` at `8ec5af16898cee654f05df277927a7a5c1876d4a`
+- Working branch: `feature/direct-s2tt-training-notebook`
 - No reset, checkout-based discard, history rewrite, push, checkpoint upload, or external publication was performed.
 
 The original project was a working but scientifically compromised Hausa ASR prototype. Detailed findings are in [REPOSITORY_AUDIT.md](REPOSITORY_AUDIT.md).
@@ -38,6 +38,10 @@ The full audio corpus was not decoded. Missing paths, invalid durations, long cl
 - Training summaries capture best validation checkpoint/metric, wall time, throughput, RTF, GPU-hours, peak allocated VRAM, and checkpoint size when a real run occurs. Workload totals use completed Trainer epoch-equivalents; partial-epoch audio duration is explicitly marked proportional/estimated.
 - Precision selection is BF16 on compatible CUDA, FP16 on other CUDA, and FP32 otherwise. Explicit unsupported BF16/FP16 requests fail.
 - Full, encoder-freeze, partial-freeze, and LoRA paths are configurable.
+- Notebook 00 artifacts, when present, are schema/provenance validated and their exact project membership is preserved during stable row-coordinate resolution. The absence path is explicitly labeled seed-42 reconstruction and must match the tracked audit.
+- Matched pilot configs differ only in model ID/revision and output/run identity; a reusable drift guard rejects all other scientific differences.
+- Direct runs save Trainer history, validation predictions and metrics separately, generation settings, step timing, phase timing, adapter/processor files, resumable checkpoints, and `official_dev_evaluated: false`.
+- [DIRECT_S2TT_ARCHITECTURE_DECISION.md](DIRECT_S2TT_ARCHITECTURE_DECISION.md) records the current primary-source screen and provisional Whisper-small + LoRA decision.
 
 ## Measured smokes
 
@@ -45,6 +49,7 @@ The full audio corpus was not decoded. Missing paths, invalid durations, long cl
 - Editable install and all seven console entrypoints load from an uninstalled checkout after `pip install -e .`.
 - Public `openai/whisper-tiny` opt-in test generated with both `transcribe` and `translate` tasks.
 - Three genuine-label direct optimizer steps passed on CPU; local checkpoint save/reload passed and emitted English.
+- The Notebook 02 synthetic-tone structural LoRA smoke passed three optimizer steps on CPU: all 48 trainable tensors had finite gradients, a sampled frozen base tensor remained unchanged, adapter/processor and resumable Trainer state saved, local adapter reload succeeded, and translation-mode generation executed. [direct_s2tt_structural_smoke.json](direct_s2tt_structural_smoke.json) records the measured telemetry and artifact hashes; it makes no quality claim.
 - Zero-shot and exact published-checkpoint cascade inference passed on a genuine NaijaS2ST Hausa recording and emitted English.
 - The tiny one-step estimator validation had 160.13% error because fixed overhead dominates; it is unsuitable as a full-job estimate.
 
@@ -62,7 +67,7 @@ python -m pip install -e . --no-deps
 python -m pytest -q
 $env:RUN_MODEL_SMOKE='1'; python -m pytest -q tests/test_model_smoke.py
 ruff check .
-python scripts/validate_notebook.py capstone_demo.ipynb
+python scripts/validate_notebook.py notebooks/02_direct_s2tt_training.ipynb
 hausa-s2tt-data --help
 hausa-s2tt-train --help
 hausa-s2tt-infer --help
@@ -76,7 +81,7 @@ Credential, absolute-path, and large-file searches are also part of final verifi
 
 ## Colab
 
-Open [capstone_demo.ipynb](../capstone_demo.ipynb), start a fresh runtime, and select Git or uploaded-archive source mode. Git mode requires an explicitly named remote ref; archive mode is the reproducible option while `feature/direct-s2tt` remains local. Execute setup/hardware detection, then run the **FAST DEMO** audit and user-audio inference cells. Direct training and final comparison are marked **EXPENSIVE TRAINING** and require a pilot/authorization. The notebook imports package modules instead of duplicating the implementation.
+Open [Notebook 02](../notebooks/02_direct_s2tt_training.ipynb) in a fresh runtime after its branch is published. Its setup uses `feature/direct-s2tt-training-notebook`, stops on a dirty checkout, installs editable, and verifies Git/package/hardware provenance. Run once with every stage flag false; then enable the structural smoke only. Baselines and matched pilots are separate expensive flags. Architecture selection requires both pilot artifacts and qualitative review; full training additionally requires a hardware-matched phase-aware projection.
 
 ## Publication commands—not executed
 
@@ -94,4 +99,4 @@ Replace `YOUR_ACCOUNT`, copy the reviewed model card into each checkpoint direct
 
 ## Most valuable next experiment
 
-Run matched 32-example, fixed-step LoRA pilots initialized from (a) `openai/whisper-small` and (b) `nahomazmach/whisper-small-ha`, using the identical speaker-safe train/validation subset. Select by validation chrF++ while recording time and peak VRAM. This directly tests whether Hausa ASR initialization improves translation under the project's low-resource constraint.
+Run the matched 50-step LoRA pilots initialized from (a) `openai/whisper-small` and (b) `nahomazmach/whisper-small-ha`, using the identical 256-example training subset and 128-example speaker-disjoint validation subset on the same authorized GPU. Select by validation chrF++ while recording loss, SacreBLEU, time, GPU-hours, peak VRAM, checkpoint size, and qualitative failure modes.

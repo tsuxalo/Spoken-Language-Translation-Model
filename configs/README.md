@@ -8,11 +8,15 @@ Every YAML file is strict, revision-pinned, and designed for a single scientific
 | `asr_improved.yaml` | Published Hausa ASR | Hausa | Full-parameter | Full FLEURS train/validation | Continued ASR diagnostic |
 | `asr_lora.yaml` | Published Hausa ASR | Hausa | LoRA | Full FLEURS train/validation | Lower-memory ASR alternative |
 | `direct_s2tt_smoke.yaml` | `openai/whisper-tiny` | English | Frozen encoder | 16 train / 8 validation maximum | Dataset-backed three-step integration smoke |
+| `direct_s2tt_pilot_base.yaml` | `openai/whisper-small` | English | LoRA | Same 256 train / 128 validation maximum | 50-step GPU pilot from multilingual base |
+| `direct_s2tt_pilot_from_asr.yaml` | Published Hausa ASR | English | LoRA | Same 256 train / 128 validation maximum | Matched 50-step GPU pilot from Hausa-ASR initialization |
 | `direct_s2tt_full.yaml` | `openai/whisper-small` | English | LoRA | Full accepted train pool | Full-data direct candidate from base Whisper |
 | `direct_s2tt_from_asr.yaml` | Published Hausa ASR | English | LoRA | Full accepted train pool | Full-data direct candidate from ASR initialization |
 | `cascade.yaml` | Published Hausa ASR + NLLB | English | No project training | Reserved NaijaS2ST dev | Reference manifest for cascade evaluation |
 
 In `direct_s2tt_full.yaml`, **full means the full accepted dataset**, not full-parameter fine-tuning. Both full-data direct candidates use LoRA so they can be compared under a similar memory budget.
+
+`assert_matched_direct_configs` permits the two pilot files to differ only in model ID, model revision, output directory, and run name. Any other difference—including subset, seed, optimization, LoRA, precision, or generation settings—fails tests.
 
 ## Field wiring
 

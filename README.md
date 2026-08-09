@@ -9,7 +9,7 @@ This repository is my reproducible research pipeline for comparing four distinct
 | ASR + NLLB | Hausa audio → Hausa text → English text | Cascaded S2TT |
 | Direct S2TT | Hausa audio → English text | Whisper trained on genuine aligned English labels |
 
-The implementation is complete and smoke-tested. The research result is still **partial**: I have not run the full direct-S2TT training job or the one-time common held-out comparison, so BLEU, chrF++, final WER/CER, GPU-hours, and peak VRAM are explicitly unmeasured.
+The reusable pipeline and direct-training notebook are implemented and CPU-safe tests pass. The research result is still **partial**: matched initialization pilots, full direct-S2TT training, and the one-time common held-out comparison have not run, so pilot/full chrF++, SacreBLEU, GPU-hours, and peak VRAM are explicitly unmeasured.
 
 ## Scientific protocol
 
@@ -19,7 +19,7 @@ The implementation is complete and smoke-tested. The research result is still **
 - Direct training reads `target_text`, which is the aligned English reference. Switching Whisper to `task=translate` without these labels is only zero-shot translation, not a fine-tuned direct model.
 - Every evaluation writes row-level JSONL predictions, aggregate metrics, model/dataset provenance, and library versions.
 
-See [IMPLEMENTATION_REPORT.md](reports/IMPLEMENTATION_REPORT.md), [EXPERIMENT_COMPARISON.md](reports/EXPERIMENT_COMPARISON.md), and [SOURCE_VERIFICATION.md](reports/SOURCE_VERIFICATION.md) for evidence and limitations.
+See [DIRECT_S2TT_ARCHITECTURE_DECISION.md](reports/DIRECT_S2TT_ARCHITECTURE_DECISION.md), [IMPLEMENTATION_REPORT.md](reports/IMPLEMENTATION_REPORT.md), [EXPERIMENT_COMPARISON.md](reports/EXPERIMENT_COMPARISON.md), and [SOURCE_VERIFICATION.md](reports/SOURCE_VERIFICATION.md) for evidence and limitations.
 
 ## Notebook workflow
 
@@ -29,10 +29,12 @@ The original monolithic [capstone demo](capstone_demo.ipynb) is being decomposed
 |---|---|---|
 | [00 — Data loading and preprocessing](notebooks/00_data_loading_preprocessing.ipynb) | Available | Revision checks, tracked audits, Hausa-English alignment, rejection accounting, speaker-safe splitting, audio/text preprocessing, and durable artifacts |
 | 01 — ASR and cascade | Planned; file not yet created | Hausa ASR diagnostics and Hausa ASR → NLLB English translation |
-| 02 — Direct S2TT training | Planned; file not yet created | Whisper training on genuine aligned English targets, checkpoints, and compute telemetry |
+| [02 — Direct S2TT training](notebooks/02_direct_s2tt_training.ipynb) | Available; expensive stages disabled | Architecture screen, exact Notebook 00 handoff, tiny structural LoRA smoke, matched initialization pilots, validation, checkpoints, and phase-aware compute telemetry |
 | 03 — Final evaluation and submission | Planned; file not yet created | Protected held-out comparison of frozen zero-shot, cascade, and direct systems |
 
 Notebook 00's default path reads checked-in audits, runs deterministic small examples, and downloads at most one short public NaijaS2ST **train** clip. Full metadata audit, full dataset construction, and artifact writing are explicit opt-ins. NaijaS2ST official dev targets remain reserved for Notebook 03.
+
+Notebook 02 selects a 244M-parameter Whisper-small direct encoder-decoder with rank-16 LoRA as the provisional bounded architecture. It compares multilingual-base and Hausa-ASR initializations with configs that are mechanically matched except for model identity and output provenance. “Full” in the direct config means all accepted training examples, not full-parameter fine-tuning.
 
 ## Measured data audit
 
@@ -86,6 +88,14 @@ Run the CPU-safe three-step trainer smoke:
 hausa-s2tt-smoke-train --output-dir artifacts/smoke
 ```
 
+The smoke uses Whisper-tiny plus LoRA, verifies gradients and frozen weights, writes a resumable Trainer checkpoint, reloads the local adapter/processor, and executes translation-mode generation. It makes no translation-quality claim.
+
+Inspect the matched GPU pilot configs before enabling the Notebook 02 gate:
+
+```bash
+python -c "from hausa_s2tt.config import load_config; from hausa_s2tt.direct_s2tt import assert_matched_direct_configs; assert_matched_direct_configs(load_config('configs/direct_s2tt_pilot_base.yaml'), load_config('configs/direct_s2tt_pilot_from_asr.yaml'))"
+```
+
 Train the corrected ASR diagnostic and direct S2TT systems:
 
 ```bash
@@ -129,11 +139,13 @@ ASR evaluation reports corpus raw and normalized WER/CER. Translation evaluation
 
 Ignored runtime outputs live under `artifacts/`; checkpoints, model binaries, datasets, caches, and generated predictions are excluded from Git. Small evidence summaries are tracked in `reports/`. The canonical functional-smoke values, local artifact paths, and SHA-256 checksums are in [`reports/smoke_results.json`](reports/smoke_results.json).
 
+Notebook 02's measured mechanics-only LoRA smoke is recorded separately in [`reports/direct_s2tt_structural_smoke.json`](reports/direct_s2tt_structural_smoke.json). It verifies gradients, frozen weights, adapter/processor persistence, resumable state, and local translation-mode generation; it does not measure translation improvement.
+
 ## Colab
 
 [capstone_demo.ipynb](capstone_demo.ipynb) is the 17-section graduate-project workflow. Start with a fresh GPU runtime, choose an explicit source mode in the setup cell, and run hardware detection. Git mode requires `REPO_REF` to exist remotely; until this local branch is pushed or merged, use archive-upload mode with a source ZIP made from this checkout. Use the marked **FAST DEMO** cells first, and run **EXPENSIVE TRAINING** only after the pilot estimate is acceptable. Colab accelerator type and price are never assumed.
 
-For the decomposed data workflow, open [Notebook 00](notebooks/00_data_loading_preprocessing.ipynb) after its branch is published. Its setup handles a missing checkout, safely fast-forwards a clean checkout, stops on a dirty checkout, installs the repository editable, and verifies that imports resolve to this checkout. The safe flags are documented in [notebooks/README.md](notebooks/README.md).
+For the decomposed workflow, run [Notebook 00](notebooks/00_data_loading_preprocessing.ipynb) before [Notebook 02](notebooks/02_direct_s2tt_training.ipynb). Notebook 02's Colab setup uses `REPO_REF = "feature/direct-s2tt-training-notebook"` until merge; then change it to `main`. It clones a missing checkout, safely fast-forwards a clean checkout, stops on dirty work, installs editable, verifies the import path and versions, and leaves every download/training flag false. Review the measured structural smoke and hardware-matched estimate before separately enabling baseline, pilot, selection, or full-training gates.
 
 Create the unpublished-source archive from a committed checkout with:
 
@@ -150,7 +162,7 @@ FLEURS and NaijaS2ST are CC BY 4.0. The published Hausa ASR checkpoint reports A
 ## Repository map
 
 - `src/hausa_s2tt/`: reusable data, training, inference, evaluation, hardware, and telemetry modules.
-- [`configs/`](configs/README.md): pinned ASR, LoRA, direct, cascade, and smoke configurations, including a wiring/status matrix.
+- [`configs/`](configs/README.md): pinned ASR, LoRA, direct, cascade, smoke, and matched-pilot configurations, including a drift guard.
 - `tests/`: CPU-safe unit tests plus an opt-in real-checkpoint smoke.
 - `scripts/`: replayable structural validation utilities.
 - `reports/`: audit, comparison, ethics, source verification, and human-evaluation materials.
