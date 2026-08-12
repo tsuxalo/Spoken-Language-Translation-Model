@@ -50,7 +50,7 @@ A few choices worth explaining:
 
 Before committing to a full run, we first verified this setup with a short trial (a couple of steps on a handful of examples) to confirm nothing was broken, then ran full training: 3 complete passes over all ~3,259 training clips on the local GPU, taking about 4.3 hours. Training loss dropped steadily the whole way — from 13.7 at the start down to 0.86 by the end — and WER on the held-out test set improved with each pass: 50.5% after epoch 1, 45.0% after epoch 2, and **44.7%** after epoch 3. That means the fine-tuned model gets a bit under half the words right on speech it never saw during training, a solid result for 3 epochs on a comparatively small, low-resource-language dataset.
 
-## Phase 5 — Trying the model out (`inference.py`)
+## Phase 5 — Trying the model out, and translating to English (`inference.py`)
 
 Once a model is trained, `inference.py` is the piece that makes it actually useful: give it a path to a `.wav` audio file, and it returns the transcribed Hausa text. It loads the fine-tuned model, converts the given audio into the same mel-spectrogram format used during training (so the model sees data in the format it expects), and asks the model to generate a text prediction.
 
@@ -58,7 +58,17 @@ We first validated the mechanics (loading, audio conversion, generation, decodin
 
 The fine-tuned model is published on the **Hugging Face Hub** at [nahomazmach/whisper-small-ha](https://huggingface.co/nahomazmach/whisper-small-ha), rather than only existing as a ~1GB folder on one laptop. That means anyone — a groupmate, the Colab notebook, a grader — can load it directly with `WhisperForConditionalGeneration.from_pretrained("nahomazmach/whisper-small-ha")` and get real transcriptions immediately, without needing to run any of the training themselves.
 
-The notebook's final section does a related but more visual version of this: it downloads the fine-tuned model from the Hub, runs 5 examples from the held-out test set through it, and displays a table comparing the correct transcription, the model's prediction, and the WER score for each one — a quick, human-readable way to see quality on real examples.
+**Getting to English:** the project's original goal was Hausa audio → **English** text, not just Hausa text. Rather than training one giant model to do both jobs at once, `inference.py` now **chains a second, separate pretrained model** onto the output of the first:
+
+```
+[ Hausa audio ] → (our fine-tuned Whisper) → [ Hausa text ] → (NLLB-200) → [ English text ]
+```
+
+Meta's **NLLB-200** ([`facebook/nllb-200-distilled-600M`](https://huggingface.co/facebook/nllb-200-distilled-600M)) is a pretrained text-to-text translation model that explicitly supports Hausa→English, so this required no additional training — just loading a second model and adding one more `generate()` call. This "cascaded" ASR + MT setup is the standard architecture most production speech-translation systems actually use, rather than one end-to-end audio-to-foreign-text model. `inference.py` now exposes `transcribe_and_translate()`, returning both the Hausa transcription and its English translation.
+
+On the same test clip used throughout this README, the cascade produces: *"The crystal structure of the skyline, Hong Kong, and the sparkling column that is depicted by the Victoria Harbour waterfront are illustrated."* — a bit awkwardly phrased, but the meaning (Hong Kong's skyline, glittering buildings, Victoria Harbour) comes through clearly, even after passing through our imperfect Hausa ASR output first.
+
+The notebook's final section does a related but more visual version of this: it downloads both models, runs 5 examples from the held-out test set through the full cascade, and displays a table with the correct Hausa transcription, our model's Hausa prediction, the WER score, and now the English translation for each one — a quick, human-readable way to see quality on real examples.
 
 ## Results
 
@@ -84,4 +94,13 @@ The base model is barely phonetically related to the correct answer; the fine-tu
 - Training pipeline: fully built, run to completion (3 epochs), and confirmed to actually improve the model — see Results above.
 - Inference pipeline: fully built and confirmed working against the real fine-tuned model, not just the base model.
 - Model: fine-tuned and published to the Hugging Face Hub, so it can be used without anyone retraining it locally.
-- Notebook: mirrors all of the above and is Colab-ready — Section 4 (training telemetry) and Section 5 (inference demo) both work out of the box using the published model and the real training log, with no local setup required.
+- **English translation: done.** The pipeline now goes all the way from Hausa audio to English text via a cascaded ASR + NLLB-200 setup — see Phase 5 above.
+- Notebook: mirrors all of the above and is Colab-ready — Section 4 (training telemetry) and Section 5 (inference + translation demo) both work out of the box using the published model and NLLB-200, with no local setup required.
+
+## Coming next
+
+The cascade (ASR → NLLB) is working and gets the meaning across, but its phrasing can be awkward, especially when it's translating our ASR model's own transcription errors rather than clean Hausa text — errors compound across the two chained models. Possible next steps:
+
+- Try a **direct** speech-to-text-translation model (Hausa audio → English text in one model, no intermediate Hausa text step) and compare quality against the cascade. This needs real Hausa-audio-paired-with-English-text training data, which the cascade approach doesn't require but a direct model does.
+- Evaluate translation quality properly (e.g., BLEU/chrF against reference English text) rather than eyeballing individual examples.
+- Revisit the training methodology: our current WER is measured against the same FLEURS test split that was evaluated during training every epoch, rather than a completely held-out final partition — worth tightening up before treating 44.7% as a fully clean number.

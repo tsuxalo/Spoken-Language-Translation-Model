@@ -10,3 +10,4 @@ jiwer
 accelerate
 matplotlib
 ipykernel
+sentencepiece
