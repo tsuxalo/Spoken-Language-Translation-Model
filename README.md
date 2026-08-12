@@ -104,3 +104,10 @@ The cascade (ASR → NLLB) is working and gets the meaning across, but its phras
 - Try a **direct** speech-to-text-translation model (Hausa audio → English text in one model, no intermediate Hausa text step) and compare quality against the cascade. This needs real Hausa-audio-paired-with-English-text training data, which the cascade approach doesn't require but a direct model does.
 - Evaluate translation quality properly (e.g., BLEU/chrF against reference English text) rather than eyeballing individual examples.
 - Revisit the training methodology: our current WER is measured against the same FLEURS test split that was evaluated during training every epoch, rather than a completely held-out final partition — worth tightening up before treating 44.7% as a fully clean number.
+
+## Notes
+- ~~build the cascade model and a notebook. NA has already began the ASR portion. Extending it with NLLB?~~ Done — see Phase 5 and "Coming next" above.
+- build the direct s2tt model and a notebook. Speech Encoder-Text decoder Transformer
+- Our final submission should be a ipnyb file that include the outputs from both notebooks, comparing the architectures
+- focusing on hausa due to the amount of available data, with an intent to make this applicable to all spoken languages later. Note that hausa is a tonal language
+- note the difference between ASR vs speech encoder
