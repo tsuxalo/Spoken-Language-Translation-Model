@@ -35,3 +35,23 @@ data/
 models/
 whisper-small-ha/
 _smoke_test_out/
+
+# ------------------------------------------------------------
+# Research experiment artifacts
+# ------------------------------------------------------------
+
+# Local smoke-test audio
+sample_hausa.wav
+
+# Generated NaijaS2ST manifests.
+# These can be reproduced from the source dataset.
+experiments/generated/
+
+# Evaluation predictions and metric outputs
+results/
+
+# Fine-tuned checkpoints / LoRA adapters
+outputs/
+
+# Temporary local environment snapshots
+before_cpu_fix.txt
