@@ -96,18 +96,38 @@ The base model is barely phonetically related to the correct answer; the fine-tu
 - Model: fine-tuned and published to the Hugging Face Hub, so it can be used without anyone retraining it locally.
 - **English translation: done.** The pipeline now goes all the way from Hausa audio to English text via a cascaded ASR + NLLB-200 setup — see Phase 5 above.
 - Notebook: mirrors all of the above and is Colab-ready — Section 4 (training telemetry) and Section 5 (inference + translation demo) both work out of the box using the published model and NLLB-200, with no local setup required.
+- **Direct speech translation: a first pilot is done and published.** See Phase 6 below — a real (if small-scale) trained comparison point against the cascade, with Section 6 of the notebook running it live.
+
+## Phase 6 — A direct speech translation pilot
+
+The cascade (ASR → NLLB) works and gets the meaning across, but its phrasing can be awkward, especially when it's translating our ASR model's own transcription errors rather than clean Hausa text — errors compound across the two chained models. That raises an obvious question: what if we skip the written-Hausa step entirely, and train a single model to go straight from Hausa audio to English text?
+
+**What we built:** a teammate (Salim) had already set up infrastructure for exactly this on a separate branch (`feature/direct-s2tt`) — a LoRA fine-tune of `openai/whisper-small` in its `task=translate` mode, trained on real Hausa-audio-to-English-text pairs from [McGill-NLP/NaijaS2ST](https://huggingface.co/datasets/McGill-NLP/NaijaS2ST) (a dataset with genuine English translations, unlike FLEURS which only has Hausa text). Rather than duplicating that work, we ran it: the branch's training code would have downloaded NaijaS2ST's entire ~69GB train split before using any of it, so we first used its own metadata-only audit tooling to find which 2 of its 115 data shards contained the most usable pairs, downloaded only those (a few GB instead of 69GB), and trained a real pilot — 256 training examples, 50 steps. Along the way we found and fixed three real bugs (a file-path bug, a `transformers` version incompatibility, and an unreliable duration field in the dataset's own metadata). Full write-up, the exact scripts run, and reproduction steps are in [`direct_pilot/RESULTS.md`](direct_pilot/RESULTS.md).
+
+**Results:**
+
+| System | BLEU | chrF++ |
+|---|---|---|
+| Cascade, gold Hausa text | ~22–25 | ~46–50 |
+| Cascade, real ASR output | **~8–10** | **~33–35** |
+| Direct pilot (this pilot) | **0.24** | **14.39** |
+
+The pilot model is published on the Hugging Face Hub at [nahomazmach/whisper-small-ha-en-direct-pilot](https://huggingface.co/nahomazmach/whisper-small-ha-en-direct-pilot) — see the notebook's Section 6 for a runnable demo.
+
+**This is a real, legitimate finding:** at small scale, the direct approach underperforms the cascade substantially, suggesting the cascade's advantage from independent massive pretraining (Whisper's 680k hours, NLLB's large parallel-text corpus) outweighs its ASR-error-propagation weakness — at least until a direct model gets enough paired data to compete. This isn't a verdict that direct approaches are worse in general — it's evidence that, in a genuinely low-resource setting like this one, the data-efficiency advantage of a cascade built from two separately pretrained giants currently matters more than avoiding error propagation.
+
+**Caveats, stated plainly:** this pilot's validation score is measured on a split derived from NaijaS2ST's train data, not the same official held-out `dev` examples the cascade's BLEU 8–10 was measured on — for a fully rigorous side-by-side, this checkpoint should be re-evaluated on that same set. And 256 training examples is far below what a direct model realistically needs to be competitive — this is a feasibility pilot, not a final verdict on cascade vs. direct as paradigms.
 
 ## Coming next
 
-The cascade (ASR → NLLB) is working and gets the meaning across, but its phrasing can be awkward, especially when it's translating our ASR model's own transcription errors rather than clean Hausa text — errors compound across the two chained models. Possible next steps:
-
-- Try a **direct** speech-to-text-translation model (Hausa audio → English text in one model, no intermediate Hausa text step) and compare quality against the cascade. This needs real Hausa-audio-paired-with-English-text training data, which the cascade approach doesn't require but a direct model does.
-- Evaluate translation quality properly (e.g., BLEU/chrF against reference English text) rather than eyeballing individual examples.
-- Revisit the training methodology: our current WER is measured against the same FLEURS test split that was evaluated during training every epoch, rather than a completely held-out final partition — worth tightening up before treating 44.7% as a fully clean number.
+- Evaluate the direct pilot on the exact same held-out NaijaS2ST examples used for the cascade's BLEU 8–10 number, for a fully apples-to-apples comparison.
+- Scale up the direct model's training data — the pilot used 256 examples out of NaijaS2ST's ~13,871 available pairs.
+- We separately reproduced the gold-vs-ASR translation quality drop reported above on our own random sample of NaijaS2ST (BLEU ~22→10, chrF++ ~48→34) — confirms the finding independently, but a larger, randomized multi-speaker evaluation (rather than a 25-example pilot) would make it fully rigorous.
+- Revisit the training methodology: our current cascade WER is measured against the same FLEURS test split that was evaluated during training every epoch, rather than a completely held-out final partition — worth tightening up before treating 44.7% as a fully clean number.
 
 ## Notes
-- ~~build the cascade model and a notebook. NA has already began the ASR portion. Extending it with NLLB?~~ Done — see Phase 5 and "Coming next" above.
-- build the direct s2tt model and a notebook. Speech Encoder-Text decoder Transformer
+- ~~build the cascade model and a notebook. NA has already began the ASR portion. Extending it with NLLB?~~ Done — see Phase 5 above.
+- ~~build the direct s2tt model and a notebook. Speech Encoder-Text decoder Transformer~~ A first pilot is done — see Phase 6 above (Whisper-based, LoRA-adapted; a separate XLS-R+mBART variant is being explored by a teammate as further future work).
 - Our final submission should be a ipnyb file that include the outputs from both notebooks, comparing the architectures
 - focusing on hausa due to the amount of available data, with an intent to make this applicable to all spoken languages later. Note that hausa is a tonal language
 - note the difference between ASR vs speech encoder
