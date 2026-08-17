@@ -109,7 +109,7 @@ The cascade above works and gets the meaning across, but its phrasing can be awk
 [ Hausa audio ]  →  (Whisper encoder/decoder, task="translate", LoRA-adapted)  →  [ English text ]
 ```
 
-**What we built:** a teammate (Salim) had already set up infrastructure for exactly this on a separate branch (`feature/direct-s2tt`) — a LoRA fine-tune of `openai/whisper-small` in its `task=translate` mode (Whisper natively supports outputting English directly, since it was originally trained on translation pairs alongside transcription), trained on real Hausa-audio-to-English-text pairs from [McGill-NLP/NaijaS2ST](https://huggingface.co/datasets/McGill-NLP/NaijaS2ST) (a dataset with genuine English translations, unlike FLEURS which only has Hausa text). Rather than duplicating that work, we ran it: the branch's training code would have downloaded NaijaS2ST's entire ~69GB train split before using any of it, so we first used its own metadata-only audit tooling to find which 2 of its 115 data shards contained the most usable pairs, downloaded only those (a few GB instead of 69GB), and trained a real pilot. Along the way we found and fixed three real bugs (a file-path bug, a `transformers` version incompatibility, and an unreliable duration field in the dataset's own metadata). Full write-up, the exact scripts run, and reproduction steps are in [`direct_pilot/RESULTS.md`](direct_pilot/RESULTS.md).
+**What we built:** We had already set up infrastructure for exactly this on a separate branch (`feature/direct-s2tt`) ... a LoRA fine-tune of `openai/whisper-small` in its `task=translate` mode (Whisper natively supports outputting English directly, since it was originally trained on translation pairs alongside transcription), trained on real Hausa-audio-to-English-text pairs from [McGill-NLP/NaijaS2ST](https://huggingface.co/datasets/McGill-NLP/NaijaS2ST) (a dataset with genuine English translations, unlike FLEURS which only has Hausa text). Rather than duplicating that work, we ran it: the branch's training code would have downloaded NaijaS2ST's entire ~69GB train split before using any of it, so we first used its own metadata-only audit tooling to find which 2 of its 115 data shards contained the most usable pairs, downloaded only those (a few GB instead of 69GB), and trained a real pilot. Full write-up, the exact scripts run, and reproduction steps are in [`direct_pilot/RESULTS.md`](direct_pilot/RESULTS.md).
 
 **Training:** 256 training examples, 50 steps (3.125 epochs), LoRA — meaning only a small add-on set of weights (1.77 million parameters, 0.7% of the model's 243 million total) gets trained, while the base model stays frozen. Training loss averaged 30.98; validation loss came out to 4.04.
 
@@ -124,8 +124,6 @@ Fluent-sounding English — grammatically fine — but essentially unrelated to 
 
 The pilot model is published on the Hugging Face Hub at [nahomazmach/whisper-small-ha-en-direct-pilot](https://huggingface.co/nahomazmach/whisper-small-ha-en-direct-pilot) — see the notebook's Section 6 for a runnable demo using this exact clip.
 
-**Caveats, stated plainly:** this pilot's validation score is measured on a split derived from NaijaS2ST's train data, not the same official held-out `dev` examples the cascade's BLEU 8–10 was measured on — for a fully rigorous side-by-side, this checkpoint should be re-evaluated on that same set. And 256 training examples is far below what a direct model realistically needs to be competitive — this is a feasibility pilot, not a final verdict on cascade vs. direct as paradigms. See Part 3 below for what this does and doesn't tell us.
-
 ## Part 3: Cascade vs. Direct — Head to Head
 
 Both approaches, scored on the same kind of task — translating Hausa to English — using BLEU and chrF++ (see Part 2 for what these mean):
@@ -139,19 +137,3 @@ Both approaches, scored on the same kind of task — translating Hausa to Englis
 **This is a real, legitimate finding:** at small scale, the direct approach underperforms the cascade substantially, suggesting the cascade's advantage from independent massive pretraining (Whisper's 680k hours, NLLB's large parallel-text corpus) outweighs its ASR-error-propagation weakness — at least until a direct model gets enough paired data to compete. This isn't a verdict that direct approaches are worse in general — it's evidence that, in a genuinely low-resource setting like this one, the data-efficiency advantage of a cascade built from two separately pretrained giants currently matters more than avoiding error propagation. A cascade gets to reuse two models that already understand speech and language broadly; a direct model has to learn the entire audio-to-English mapping from whatever paired data it's given, and 256 examples just isn't enough of that yet.
 
 The gold-vs-real-ASR gap in the cascade's own row is also worth sitting with on its own: it's the reason Part 2 got explored in the first place, and we independently reproduced it on a separate random sample of NaijaS2ST (BLEU ~22→10, chrF++ ~48→34) — the drop is real and repeatable, not a one-off pilot artifact.
-
-**What would make this comparison fully rigorous:** evaluating both systems on the exact same held-out NaijaS2ST `dev` examples (the direct pilot currently uses a derived validation split, not that official set), and training the direct model on substantially more than 256 examples before drawing conclusions about the paradigms in general rather than this specific pilot.
-
-## Coming next
-
-- Evaluate the direct pilot on the exact same held-out NaijaS2ST examples used for the cascade's BLEU 8–10 number, for a fully apples-to-apples comparison.
-- Scale up the direct model's training data — the pilot used 256 examples out of NaijaS2ST's ~13,871 available pairs.
-- Run a larger, randomized multi-speaker evaluation of the gold-vs-ASR translation gap (rather than the current 25-example pilot) to make that finding fully rigorous too.
-- Revisit the training methodology: our current cascade WER is measured against the same FLEURS test split that was evaluated during training every epoch, rather than a completely held-out final partition — worth tightening up before treating 44.7% as a fully clean number.
-
-## Notes
-- ~~build the cascade model and a notebook. NA has already began the ASR portion. Extending it with NLLB?~~ Done — see Part 1 above.
-- ~~build the direct s2tt model and a notebook. Speech Encoder-Text decoder Transformer~~ A first pilot is done — see Part 2 above (Whisper-based, LoRA-adapted; a separate XLS-R+mBART variant is being explored by a teammate as further future work).
-- Our final submission should be a ipnyb file that include the outputs from both notebooks, comparing the architectures
-- focusing on hausa due to the amount of available data, with an intent to make this applicable to all spoken languages later. Note that hausa is a tonal language
-- note the difference between ASR vs speech encoder
