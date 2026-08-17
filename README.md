@@ -1,7 +1,7 @@
 # Spoken-Language-Translation-Model
 A Framework for Translating Hausa Audio Recordings into English Text
 
-Collaborative Project with N Azamach & K Mokha
+Collaborative Project with Nahom Azmach, Salim Gloyd, and Karun Mokha
 
 ## What this project does
 
