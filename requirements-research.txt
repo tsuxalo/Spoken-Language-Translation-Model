@@ -1,0 +1,19 @@
+# Dependencies for the controlled research/training pipeline.
+# Install into the GPU training environment after a CUDA-enabled PyTorch build
+# appropriate for that machine has already been installed.
+#
+# COMET is intentionally excluded. Use requirements-comet.txt after prediction
+# generation, preferably in a separate analysis environment.
+transformers>=4.57,<5
+datasets
+peft
+accelerate
+sentencepiece
+sacrebleu
+jiwer
+librosa
+soundfile
+evaluate
+matplotlib
+pandas
+numpy<2
