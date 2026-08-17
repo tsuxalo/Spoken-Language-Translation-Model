@@ -541,7 +541,7 @@ def train_experiment(config: ExperimentConfig) -> dict[str, Any]:
         per_device_eval_batch_size=config.training.eval_batch_size,
         gradient_accumulation_steps=config.training.gradient_accumulation_steps,
         learning_rate=config.training.learning_rate,
-        warmup_ratio=config.training.warmup_ratio,
+        warmup_steps=round(config.training.warmup_ratio * (config.training.max_steps or 100)),
         weight_decay=config.training.weight_decay,
         max_grad_norm=config.training.max_grad_norm,
         num_train_epochs=config.training.num_train_epochs,
