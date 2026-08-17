@@ -1,13 +1,18 @@
+# Core dependencies shared by CPU and GPU environments.
+
 transformers>=4.30
 datasets
-# CUDA build for NVIDIA GPUs (Blackwell/RTX 50-series needs CUDA 12.8+); drop --extra-index-url for CPU-only
---extra-index-url https://download.pytorch.org/whl/cu130
-torch==2.13.0+cu130
-torchaudio==2.11.0+cu130
 librosa
+soundfile
 evaluate
 jiwer
 accelerate
 matplotlib
 ipykernel
 sentencepiece
+
+# Translation evaluation
+sacrebleu
+
+# Parameter-efficient fine-tuning
+peft
