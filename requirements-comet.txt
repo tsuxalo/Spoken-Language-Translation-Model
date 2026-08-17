@@ -1,0 +1,5 @@
+# Final statistical analysis with SSA-COMET.
+# Prefer installing this in a separate environment after prediction generation,
+# because COMET may constrain/downgrade Transformers and related packages.
+-r requirements-research.txt
+unbabel-comet==2.2.7
