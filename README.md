@@ -1,5 +1,5 @@
 # Spoken-Language-Translation-Model
-A Framework for Translating Hausa Audio Recordings into English Text
+Translating Hausa Speech to English — and Asking Whether Machine Learning Can Bypass the Need for a Written Language
 
 Collaborative Project with Nahom Azmach, Salim Gloyd, and Karun Mokha
 
