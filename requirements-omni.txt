@@ -1,0 +1,3 @@
+# Optional strong ASR baseline.
+# Meta's official Omnilingual ASR package.
+omnilingual-asr

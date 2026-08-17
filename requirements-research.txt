@@ -1,0 +1,5 @@
+# Additional dependencies for the final capstone analysis.
+# Install after the repo's normal GPU requirements.
+pandas
+numpy
+unbabel-comet
