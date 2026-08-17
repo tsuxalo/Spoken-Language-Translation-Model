@@ -90,6 +90,10 @@ The notebook's Section 5 does a related but more visual version of this: it down
 | Eval WER | 50.5% | 45.0% | **44.7%** |
 | Eval loss | 0.750 | 0.702 | 0.712 |
 
+![Cascade training loss and WER over training steps](images/cascade_training_curve.png)
+
+**What this picture is showing, in plain terms:** the left chart is the model's **training loss** — a single number that measures "how wrong is the model right now," calculated after every batch of examples it sees. It starts high (the model knows nothing about Hausa yet) and drops fast, then levels off — that flattening-out is normal and expected; it means the model has learned most of what it's going to learn from this amount of data, and further big improvements would need either more data or more training time. The right chart is **WER**, checked three times (once per epoch, i.e. once per full pass through the training data) on audio the model never trained on — it's the real test of whether the model actually got better, not just memorized the training examples. Both charts agreeing (loss down, WER down) is a good sign: the model is really learning to transcribe Hausa, not just overfitting.
+
 Trained model: [nahomazmach/whisper-small-ha](https://huggingface.co/nahomazmach/whisper-small-ha) on the Hugging Face Hub.
 
 **A concrete before/after**, on the same held-out test clip used again in Part 2 below, for direct comparison:
@@ -136,9 +140,21 @@ Both approaches, scored on the same kind of task — translating Hausa to Englis
 | Cascade, real ASR output (the actual end-to-end pipeline) | **~8–10** | **~33–35** |
 | Direct pilot | **0.24** | **14.39** |
 
+![Cascade vs direct pilot BLEU and chrF++ bar chart](images/cascade_vs_direct_comparison.png)
+
+**What this picture is showing, in plain terms:** three bars, and for each one, taller = better. The first two bars are both *the same cascade model* — the only thing that changed between them is whether NLLB got to translate the *correct* Hausa text (left bar) or the Hausa text our imperfect ASR actually produced, mistakes and all (middle bar). The height drops by more than half just from that one change — that's the entire "ASR error propagation" story in one picture: the translation model itself didn't get worse, its *input* did. The third bar is a completely different, much smaller experiment (the direct pilot) — much shorter, for reasons explained above.
+
 **This is a real, legitimate finding:** at small scale, the direct approach underperforms the cascade substantially, suggesting the cascade's advantage from independent massive pretraining (Whisper's 680k hours, NLLB's large parallel-text corpus) outweighs its ASR-error-propagation weakness — at least until a direct model gets enough paired data to compete. This isn't a verdict that direct approaches are worse in general — it's evidence that, in a genuinely low-resource setting like this one, the data-efficiency advantage of a cascade built from two separately pretrained giants currently matters more than avoiding error propagation. A cascade gets to reuse two models that already understand speech and language broadly; a direct model has to learn the entire audio-to-English mapping from whatever paired data it's given, and 256 examples just isn't enough of that yet.
 
 The gold-vs-real-ASR gap in the cascade's own row is also worth sitting with on its own: it's the reason Part 2 got explored in the first place, and we independently reproduced it on a separate random sample of NaijaS2ST (BLEU ~22→10, chrF++ ~48→34) — the drop is real and repeatable, not a one-off pilot artifact.
+
+**A closer, per-utterance look:** the bar chart above compares two big averages. This next chart zooms in — instead of one average number for "real ASR output," it plots all 25 individual test clips as separate dots, to check whether the pattern holds up clip-by-clip and not just on average.
+
+![WER vs translation quality](images/wer_vs_translation_quality.png)
+
+**What this picture is showing, in plain terms:** each dot is one audio clip. A dot's position left-to-right is how many mistakes our ASR model made transcribing that specific clip (its **Word Error Rate** — 0% on the far left means a perfect transcription, 60% on the right means more than half the words were wrong). A dot's position up-or-down is how good the *English translation* of that same clip turned out (measured by BLEU on the left chart, chrF++ on the right — for both, higher = closer to the correct English answer). If ASR mistakes really do cause bad translations, we'd expect dots to drift downward as we move right — more transcription errors, worse translation — and that's roughly what the orange trend line shows: it slopes down in both charts.
+
+It's not a perfectly clean line — a few clips with lots of ASR errors still translated decently, and vice versa, which is completely normal with real data and only 25 examples. The "**r**" number in the legend (called a *correlation coefficient*) is a standard way statisticians summarize how strongly two things move together in a single number: `r = 0` would mean no relationship at all, `r = -1` would mean a perfectly clean "more errors always means worse translation, every single time" relationship. Our r values (around -0.35 to -0.38) sit in between — a real, visible relationship, just not an ironclad rule for every individual clip. That's exactly what we'd expect: ASR errors are *a* major cause of bad translations, not the *only* one. See [`analysis/WER_VS_TRANSLATION_QUALITY.md`](analysis/WER_VS_TRANSLATION_QUALITY.md) and the notebook's Section 8 for more detail.
 
 **What would make this comparison fully rigorous:** evaluating both systems on the exact same held-out NaijaS2ST `dev` examples (the direct pilot currently uses a derived validation split, not that official set), and training the direct model on substantially more than 256 examples before drawing conclusions about the paradigms in general rather than this specific pilot.
 
