@@ -2,6 +2,93 @@
 
 A controlled study of **ASR error propagation and error-aware machine translation** in a low-resource Hausa→English speech-translation cascade.
 
+## Quickstart
+
+The repository is tested with Python 3.12. All public model IDs and immutable
+revisions are already recorded in `experiments/revisions.py`; the commands below
+do not require a Hugging Face token for the public models.
+
+### 1. Clone and choose an environment
+
+```bash
+git clone https://github.com/tsuxalo/Spoken-Language-Translation-Model.git
+cd Spoken-Language-Translation-Model
+python -m venv .venv
+```
+
+Activate the environment with `.venv\Scripts\activate` on Windows PowerShell or
+`source .venv/bin/activate` on Linux/macOS, then choose one dependency path:
+
+| Goal | Installation |
+|---|---|
+| Run the baseline cascade on CPU | `python -m pip install -r requirements-cpu.txt` |
+| Run pinned C1/comparison code | Install matching PyTorch first, then `python -m pip install -r requirements-c1.txt` |
+| Run repository tests and checks | Install matching PyTorch first, then `python -m pip install -r requirements-dev.txt` |
+| Run CUDA research training | Use `requirements-gpu.txt`, or install a driver-compatible PyTorch build followed by `requirements-research.txt` |
+| Run SSA-COMET analysis | Use a separate environment with `requirements-comet.txt` |
+
+For a reproducible CPU C1 or development environment:
+
+```bash
+python -m pip install --upgrade pip
+python -m pip install torch==2.13.0 --index-url https://download.pytorch.org/whl/cpu
+python -m pip install -r requirements-c1.txt
+```
+
+Do not install `requirements-research.txt` and `requirements-c1.txt` into the
+same environment: the completed research pipeline uses Transformers `<5`, while
+the exported C1 package is verified with Transformers 5.14.1.
+
+### 2. Run the cascade
+
+The cascade performs Hausa speech → Hausa Whisper ASR → NLLB English MT:
+
+```bash
+python inference.py path/to/hausa.wav
+```
+
+The first run downloads the pinned public ASR and MT models. The command prints
+both the intermediate Hausa transcript and final English translation.
+
+### 3. Run C1 direct speech translation
+
+C1 performs Hausa speech → XLS-R/Wav2Vec2 encoder → mBART English decoder,
+without an external ASR or MT stage:
+
+```bash
+python direct_c1.py path/to/hausa.wav --device cpu
+```
+
+Use `--device cuda` only after confirming that the installed PyTorch build sees
+the GPU. Scored C1 evaluation rejects audio longer than 30 seconds by design.
+
+### 4. Run verification
+
+```bash
+python -m pip install -r requirements-dev.txt
+python -m pytest -q
+python -m ruff check .
+python -m compileall -q .
+python scripts/validate_gpu_handoff_artifacts.py --artifact-root artifacts/gpu-handoff
+```
+
+GitHub Actions runs the same core checks, rebuilds the output-free notebook, and
+renders all poster figures from the committed privacy-safe aggregates.
+
+### 5. Reproduce the poster figures
+
+```bash
+python poster/generate_figures.py
+```
+
+The generator reads `artifacts/gpu-handoff/*.json` directly and writes four PNG
+and four SVG files under `poster/figures/`. No private predictions or local
+`poster/data` directory are required.
+
+For the guided Colab demonstration, open `capstone_demo.ipynb`. Its setup uses
+`requirements-colab.txt` so Colab's preloaded compiled scientific stack is not
+replaced inside a live kernel.
+
 ## Research question
 
 > **Can adapting Hausa→English MT to the real error distribution of a fixed Hausa ASR system improve downstream speech-translation quality?**
