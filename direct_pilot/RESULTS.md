@@ -72,7 +72,7 @@ parameters, 0.7% of the 243M total).
 | Validation BLEU | **0.24** |
 | Validation chrF++ | **14.39** |
 
-### Compared to the existing cascade (Whisper-ha -> NLLB-200)
+### Historical context beside the existing cascade (Whisper-ha -> NLLB-200)
 
 | System | BLEU | chrF++ |
 |---|---|---|
@@ -89,23 +89,23 @@ the only way to help the country win the war."* — fluent-sounding English,
 but essentially unrelated to the actual content. That's what a BLEU of 0.24
 looks like in practice: the model hasn't really learned to translate yet.
 
-**This is a real, legitimate finding:** at small scale, the direct approach
-underperforms the cascade substantially, suggesting the cascade's advantage
-from independent massive pretraining (Whisper's 680k hours, NLLB's large
-parallel-text corpus) outweighs its ASR-error-propagation weakness — at least
-until a direct model gets enough paired data to compete. This isn't a verdict
-that direct approaches are worse in general; it's evidence that, in a
-genuinely low-resource setting like this one, the data-efficiency advantage
-of a cascade built from two separately pretrained giants currently matters
-more than avoiding error propagation.
+These values are historical context, not a common-manifest ranking. The pilot
+validation came from NaijaS2ST `train`, while the cited cascade range came from
+other memberships. The pilot result establishes that this 256-example run did
+not learn reliable translation; it does not establish a statistical ordering
+between direct and cascade architectures.
 
 ### Caveats
 
-- **Not yet an apples-to-apples comparison.** This validation score is on a
-  split *derived from the train set*, not the same official NaijaS2ST `dev`
-  examples the cascade's BLEU 8–10 was measured on. For a rigorous
-  side-by-side, this checkpoint should be re-evaluated on that same held-out
-  set.
+- **Not an apples-to-apples comparison.** This validation score is on a split
+  derived from NaijaS2ST `train`. The C1/direct-pilot integration did not score
+  official `dev`; it used the recovered 1,037-row C1 internal-validation
+  membership. A separate completed fixed-ASR MT experiment has since observed
+  official `dev`, so that split is no longer an untouched future tuning set.
+- **Training overlap remains UNVERIFIED.** The exact historical `_pairs.json`
+  membership was not preserved, so the common-membership evaluation states
+  that direct-pilot training overlap could not be fully audited and must not be
+  presented as leakage-free.
 - **This is a pilot, not a final result.** 256 training examples is far below
   what a direct model would realistically need to be competitive. Treat this
   as a feasibility/first-signal run, not a verdict on cascade vs. direct as

@@ -1,0 +1,84 @@
+{
+  "schema_version": "1.0",
+  "discovered_at_utc": "2026-08-18",
+  "official_naijas2st_dev_loaded_during_this_task": false,
+  "rows": [
+    {
+      "artifact": "C1 Hub package contract files",
+      "location": "lEtoileNoir/Hausa_English_Direct_S2TT",
+      "found": true,
+      "hash_or_revision": "cd84a6c2e447b098d772d6ad59b247f16c29075d",
+      "safe_to_use": true
+    },
+    {
+      "artifact": "C1 project-validation manifest (1,037 private rows)",
+      "location": "local C1 project/manifests/validation.jsonl",
+      "found": true,
+      "hash_or_revision": "ad70f94e7d9ca3bc2e287bc25c1d2a64fe06428a0fe5484e76be3c18adafd939",
+      "safe_to_use": "private/local only"
+    },
+    {
+      "artifact": "C1 project-train manifest (11,857 private rows)",
+      "location": "local C1 project/manifests/train.jsonl",
+      "found": true,
+      "hash_or_revision": "b2d854e6bbd8ffc1e9bbb1017560a65a1a70a156f4d8c0d4b306da49f883718e",
+      "safe_to_use": "private/local only"
+    },
+    {
+      "artifact": "C1 split audit",
+      "location": "local C1 project/manifests/split_audit.json",
+      "found": true,
+      "hash_or_revision": "9623964f1e5dca7ca516f63a8fd2b3e7e27194f3d9c474e5782195199802aa69",
+      "safe_to_use": "aggregate fields only"
+    },
+    {
+      "artifact": "C1 full run manifest and loss history",
+      "location": "local C1 project/results/m3_pilot500_full_continue/run_manifest.json",
+      "found": true,
+      "hash_or_revision": "6718f8288a43e2f28383622a68428c6c0dcd55d78dbc207d04847b7b1c07c0ac",
+      "safe_to_use": "aggregate fields only"
+    },
+    {
+      "artifact": "C1 frozen development champion",
+      "location": "local C1 project/reports/model_evaluation/frozen_development_champion.json",
+      "found": true,
+      "hash_or_revision": "fc79d5e436e291bb40c9fcc138a7f1b4078d172e4c6e4b154f238143dc6ed729",
+      "safe_to_use": true
+    },
+    {
+      "artifact": "C1 decoding-selection results",
+      "location": "local C1 project/reports/model_evaluation/c1_decoding_results.json",
+      "found": true,
+      "hash_or_revision": "e4c8be2aec56609d0aaf57189528a7019ea359c0f08a00974ba710c8d2cb6a3e",
+      "safe_to_use": "aggregate fields only"
+    },
+    {
+      "artifact": "Historical direct-pilot training membership (_pairs.json)",
+      "location": "local checkout and C1 project search",
+      "found": false,
+      "hash_or_revision": "UNVERIFIED",
+      "safe_to_use": false
+    },
+    {
+      "artifact": "Historical direct-pilot scalar metrics and reproduction scripts",
+      "location": "direct_pilot/RESULTS.md and pilot_step*.py",
+      "found": true,
+      "hash_or_revision": "repository base e00bc441b55b9ca2f31091d56d5ef0893c4536f9",
+      "safe_to_use": true
+    }
+  ],
+  "membership_summary": {
+    "validation_rows": 1037,
+    "alignment_groups": 543,
+    "validation_speakers": 6,
+    "official_split": "train",
+    "project_split": "validation",
+    "dataset_revision": "898f51582750fe244693794f22e3f4b32c5baf95",
+    "split_seed": 42,
+    "speaker_overlap_count": 0,
+    "pair_overlap_count": 0,
+    "normalized_target_overlap_count": 0,
+    "validation_membership_sha256": "1d46658b911831bf1dfcba37b899fa1295c18ec434785cede908fb91c99a84cd",
+    "direct_pilot_training_overlap": "UNVERIFIED"
+  }
+}

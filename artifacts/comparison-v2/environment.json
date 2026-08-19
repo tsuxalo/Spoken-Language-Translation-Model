@@ -1,0 +1,36 @@
+{
+  "schema_version": "1.0",
+  "verified_at_utc": "2026-08-18",
+  "operating_system": "Windows 11 (platform build 10.0.26200)",
+  "dependency_validation_environment": {
+    "python": "3.12.13",
+    "torch": "2.13.0+cpu",
+    "cuda_build": null,
+    "transformers": "5.14.1",
+    "peft": "0.20.0",
+    "datasets": "4.8.5",
+    "numpy": "2.4.6",
+    "soundfile": "0.14.0",
+    "librosa": "0.11.0",
+    "scipy": "1.18.0",
+    "sentencepiece": "0.2.2",
+    "sacrebleu": "2.6.0",
+    "purpose": "Exact requirements-c1 dependency validation, lint, unit tests, artifact scoring, and notebook validation."
+  },
+  "real_model_smoke_environment": {
+    "python": "3.11.9",
+    "torch": "2.11.0+cu128",
+    "cuda_build": "12.8",
+    "nvidia_driver": "591.49",
+    "gpu": "NVIDIA GeForce RTX 5050 Laptop GPU",
+    "gpu_memory_mib": 8151,
+    "transformers": "5.14.1",
+    "peft": "0.20.0",
+    "accelerate": "1.14.0",
+    "numpy": "2.4.6",
+    "soundfile": "0.14.0",
+    "scipy": "1.17.1",
+    "purpose": "Exact pinned-weight float32 CUDA smoke, 10-example pilot, and full 1,037-example three-system development evaluation."
+  },
+  "colab_clean_environment_smoke": "UNVERIFIED"
+}

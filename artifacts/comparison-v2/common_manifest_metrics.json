@@ -1,0 +1,216 @@
+{
+  "bootstrap": {
+    "cluster_key": "alignment_id",
+    "confidence_level": 0.95,
+    "method": "paired cluster bootstrap",
+    "paired_deltas": {
+      "cascade_real_asr_minus_direct_pilot": {
+        "BLEU": {
+          "ci95": [
+            4.0052682958307315,
+            7.193654824532567
+          ],
+          "mean": 6.117750436735916
+        },
+        "chrF++": {
+          "ci95": [
+            17.1207764640181,
+            24.937155546288686
+          ],
+          "mean": 20.613459781992148
+        }
+      },
+      "direct_c1_minus_cascade_real_asr": {
+        "BLEU": {
+          "ci95": [
+            -6.791713617426864,
+            -3.93363916417699
+          ],
+          "mean": -5.871071515362286
+        },
+        "chrF++": {
+          "ci95": [
+            -18.904606073451966,
+            -13.458614931278799
+          ],
+          "mean": -15.933654368307904
+        }
+      },
+      "direct_c1_minus_direct_pilot": {
+        "BLEU": {
+          "ci95": [
+            -0.24517112315918543,
+            0.5836388319803363
+          ],
+          "mean": 0.2466789213736295
+        },
+        "chrF++": {
+          "ci95": [
+            2.3526253957987087,
+            6.264409189585159
+          ],
+          "mean": 4.679805413684241
+        }
+      }
+    },
+    "replicates": 1000,
+    "seed": 42,
+    "system_intervals": {
+      "cascade_real_asr": {
+        "BLEU": [
+          4.375002744015837,
+          7.585223712066017
+        ],
+        "chrF++": [
+          29.04143483617549,
+          37.81504130394902
+        ]
+      },
+      "direct_c1": {
+        "BLEU": [
+          0.30577216000006446,
+          0.9644266948349816
+        ],
+        "chrF++": [
+          14.18999029614511,
+          19.808100576912064
+        ]
+      },
+      "direct_pilot": {
+        "BLEU": [
+          0.16070442676834584,
+          1.0305962121921297
+        ],
+        "chrF++": [
+          10.160946079070376,
+          16.03047627870074
+        ]
+      }
+    }
+  },
+  "dataset": {
+    "id": "McGill-NLP/NaijaS2ST",
+    "official_source_split": "train",
+    "project_split": "validation",
+    "revision": "898f51582750fe244693794f22e3f4b32c5baf95"
+  },
+  "direct_pilot_overlap_audit": "UNVERIFIED",
+  "estimated_full_1037_inference_hours": {
+    "cascade_real_asr": 0.3428552502045236,
+    "direct_c1": 0.19254615026662655,
+    "direct_pilot": 0.3834438017964656
+  },
+  "evaluation_scope": "pilot",
+  "label": "Common-manifest development pilot; not independent test evidence.",
+  "limitation": "Direct-pilot training overlap could not be fully audited. This evaluation must not be presented as leakage-free.",
+  "membership": {
+    "alignment_clusters": 5,
+    "cluster_key": "alignment_id",
+    "max_duration_seconds": 25.87,
+    "number_of_examples": 10,
+    "selection_seed": 42,
+    "sha256": "ffaca5a36430b0cc244d3bf3047f324acbb191ccee6f04a181411b7948e796dc"
+  },
+  "metrics": {
+    "cascade_real_asr": {
+      "BLEU": 6.960088754968784,
+      "alignment_adjusted_unique_output_rate": 1.0,
+      "chrF++": 33.86084835459014,
+      "cross_reference_collisions": 0,
+      "empty_output_rate": 0.0,
+      "failure_rate": 0.0,
+      "inference_time_seconds_mean": 1.1902400199964176,
+      "inference_time_seconds_median": 1.0933592999936081,
+      "load_time_seconds": 5.530928000007407,
+      "negation_omission_rate": 0.0,
+      "nonempty_outputs": 10,
+      "number_mismatch_rate": 0.3,
+      "number_of_examples": 10,
+      "output_tokens_max": 63,
+      "output_tokens_mean": 30.3,
+      "output_tokens_median": 26.5,
+      "output_tokens_min": 13,
+      "peak_gpu_memory_mb": 2383.01025390625,
+      "raw_unique_output_rate": 1.0,
+      "real_time_factor_mean": 0.07122401037606167,
+      "repeated_3gram_rate": 0.1,
+      "successes": 10,
+      "top_hypothesis_frequency": 0.2
+    },
+    "direct_c1": {
+      "BLEU": 0.8949238896085269,
+      "alignment_adjusted_unique_output_rate": 1.0,
+      "chrF++": 18.035231729120003,
+      "cross_reference_collisions": 0,
+      "empty_output_rate": 0.0,
+      "failure_rate": 0.0,
+      "inference_time_seconds_mean": 0.6684340799998608,
+      "inference_time_seconds_median": 0.7709738999983529,
+      "load_time_seconds": 5.147096000000602,
+      "negation_omission_rate": 0.0,
+      "nonempty_outputs": 10,
+      "number_mismatch_rate": 0.4,
+      "number_of_examples": 10,
+      "output_tokens_max": 36,
+      "output_tokens_mean": 28.3,
+      "output_tokens_median": 32.0,
+      "output_tokens_min": 14,
+      "peak_gpu_memory_mb": 3609.5673828125,
+      "raw_unique_output_rate": 1.0,
+      "real_time_factor_mean": 0.04117219003351863,
+      "repeated_3gram_rate": 0.0,
+      "successes": 10,
+      "top_hypothesis_frequency": 0.2
+    },
+    "direct_pilot": {
+      "BLEU": 0.42489402954260475,
+      "alignment_adjusted_unique_output_rate": 1.0,
+      "chrF++": 13.217225693622861,
+      "cross_reference_collisions": 0,
+      "empty_output_rate": 0.0,
+      "failure_rate": 0.0,
+      "inference_time_seconds_mean": 1.3311453099973733,
+      "inference_time_seconds_median": 0.6840252000038163,
+      "load_time_seconds": 2.2641800999990664,
+      "negation_omission_rate": 0.0,
+      "nonempty_outputs": 10,
+      "number_mismatch_rate": 0.4,
+      "number_of_examples": 10,
+      "output_tokens_max": 213,
+      "output_tokens_mean": 84.3,
+      "output_tokens_median": 33.5,
+      "output_tokens_min": 12,
+      "peak_gpu_memory_mb": 1071.9111328125,
+      "raw_unique_output_rate": 1.0,
+      "real_time_factor_mean": 0.08801614067766979,
+      "repeated_3gram_rate": 0.7,
+      "successes": 10,
+      "top_hypothesis_frequency": 0.2
+    }
+  },
+  "model_revisions": {
+    "cascade_real_asr": {
+      "facebook/nllb-200-distilled-600M": "f8d333a098d19b4fd9a8b18f94170487ad3f821d",
+      "nahomazmach/whisper-small-ha": "c4e2b47d88ae8b3ee0a605e09863b93aafca72e3"
+    },
+    "direct_c1": {
+      "lEtoileNoir/Hausa_English_Direct_S2TT": "cd84a6c2e447b098d772d6ad59b247f16c29075d"
+    },
+    "direct_pilot": {
+      "nahomazmach/whisper-small-ha-en-direct-pilot": "a91a4a1155c574a24226de53f053e08b6446806d",
+      "openai/whisper-small": "973afd24965f72e36ca33b3055d56a652f456b4d"
+    }
+  },
+  "observed_total_inference_hours": {
+    "cascade_real_asr": 0.003306222277767827,
+    "direct_c1": 0.0018567613333329467,
+    "direct_pilot": 0.0036976258611038145
+  },
+  "qualitative_review_queue": {
+    "note": "Names and dates are queued for human review, not assigned a formal score.",
+    "number_of_examples": 4,
+    "private_path": "artifacts/comparison-v2/private/qualitative_review_queue.json"
+  },
+  "runtime_estimate_note": "Linear extrapolation of mean batch-size-1 inference time only; excludes one-time model loading, dataset I/O, scoring, and operational margin.",
+  "schema_version": "1.0"
+}

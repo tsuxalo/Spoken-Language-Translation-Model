@@ -1,0 +1,72 @@
+{
+  "schema_version": "1.0",
+  "warning": "Rows use different evaluation sets and must not be ranked as an apples-to-apples comparison.",
+  "rows": [
+    {
+      "system": "cascade_real_asr",
+      "system_type": "deployable cascade",
+      "evaluation_set": "NaijaS2ST official dev (historical sealed run; not rerun here)",
+      "dataset_revision": "898f51582750fe244693794f22e3f4b32c5baf95",
+      "number_of_examples": 1500,
+      "model_revisions": {
+        "nahomazmach/whisper-small-ha": "c4e2b47d88ae8b3ee0a605e09863b93aafca72e3",
+        "facebook/nllb-200-distilled-600M": "f8d333a098d19b4fd9a8b18f94170487ad3f821d"
+      },
+      "BLEU": 13.332154853954078,
+      "chrF++": 37.505456693158116,
+      "WER": 47.3266,
+      "evidence_scope": "historical",
+      "training_or_selection_influence": "No model selection in this integration; this sealed official-dev result predates it.",
+      "source_artifact_or_document": "GPU system_metrics.csv (private authoritative source; SHA-256 fb2cc584b2edd806e158c0daeeb828d011cf8971036f07d7ad4b35c9483b07eb)"
+    },
+    {
+      "system": "gold_hausa_mt_oracle",
+      "system_type": "diagnostic text-MT oracle; not deployable S2TT",
+      "evaluation_set": "NaijaS2ST official dev gold Hausa (historical sealed run; not rerun here)",
+      "dataset_revision": "898f51582750fe244693794f22e3f4b32c5baf95",
+      "number_of_examples": 1500,
+      "model_revisions": {
+        "facebook/nllb-200-distilled-600M": "f8d333a098d19b4fd9a8b18f94170487ad3f821d"
+      },
+      "BLEU": 28.8034,
+      "chrF++": 52.1398,
+      "WER": null,
+      "evidence_scope": "historical",
+      "training_or_selection_influence": "Diagnostic oracle only; not ranked as a deployable speech system.",
+      "source_artifact_or_document": "GPU experiment findings (private authoritative source)"
+    },
+    {
+      "system": "direct_pilot",
+      "system_type": "deployable direct Whisper+LoRA pilot",
+      "evaluation_set": "targeted NaijaS2ST train-derived pilot validation",
+      "dataset_revision": "898f51582750fe244693794f22e3f4b32c5baf95",
+      "number_of_examples": 128,
+      "model_revisions": {
+        "openai/whisper-small": "973afd24965f72e36ca33b3055d56a652f456b4d",
+        "nahomazmach/whisper-small-ha-en-direct-pilot": "a91a4a1155c574a24226de53f053e08b6446806d"
+      },
+      "BLEU": 0.24,
+      "chrF++": 14.39,
+      "WER": null,
+      "evidence_scope": "historical",
+      "training_or_selection_influence": "Pilot validation influenced reporting; exact training membership is UNVERIFIED.",
+      "source_artifact_or_document": "direct_pilot/RESULTS.md"
+    },
+    {
+      "system": "direct_c1",
+      "system_type": "deployable direct XLS-R-to-mBART model",
+      "evaluation_set": "C1 internal project validation derived from NaijaS2ST train",
+      "dataset_revision": "898f51582750fe244693794f22e3f4b32c5baf95",
+      "number_of_examples": 1037,
+      "model_revisions": {
+        "lEtoileNoir/Hausa_English_Direct_S2TT": "cd84a6c2e447b098d772d6ad59b247f16c29075d"
+      },
+      "BLEU": 0.4991742421387969,
+      "chrF++": 16.668232156701308,
+      "WER": null,
+      "evidence_scope": "development-pilot",
+      "training_or_selection_influence": "This validation set influenced C1 decoding/model selection; not independent evidence.",
+      "source_artifact_or_document": "pinned C1 metrics.json SHA-256 4c872d8ab2912081c0cd38e196d99ec4ebb809e7a91b201f7a37ed19168ca200"
+    }
+  ]
+}

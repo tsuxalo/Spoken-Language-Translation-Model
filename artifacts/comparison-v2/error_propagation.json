@@ -1,0 +1,38 @@
+{
+  "schema_version": "1.0",
+  "system": "cascade_real_asr",
+  "evaluation_set": "25-example historical NaijaS2ST error-propagation reproduction",
+  "model_revisions": {
+    "nahomazmach/whisper-small-ha": "c4e2b47d88ae8b3ee0a605e09863b93aafca72e3",
+    "facebook/nllb-200-distilled-600M": "f8d333a098d19b4fd9a8b18f94170487ad3f821d"
+  },
+  "evidence_scope": "historical",
+  "source_artifact_or_document": "values formerly embedded in capstone_demo.ipynb Section 8 at repository base e00bc441b55b9ca2f31091d56d5ef0893c4536f9",
+  "rows": [
+    {"wer": 44.0, "bleu": 2.26, "chrf_pp": 23.78},
+    {"wer": 21.43, "bleu": 5.91, "chrf_pp": 27.39},
+    {"wer": 23.68, "bleu": 39.17, "chrf_pp": 63.14},
+    {"wer": 62.5, "bleu": 8.17, "chrf_pp": 14.1},
+    {"wer": 33.33, "bleu": 21.1, "chrf_pp": 51.86},
+    {"wer": 25.58, "bleu": 17.53, "chrf_pp": 41.58},
+    {"wer": 38.24, "bleu": 6.34, "chrf_pp": 42.2},
+    {"wer": 53.33, "bleu": 7.15, "chrf_pp": 27.35},
+    {"wer": 56.52, "bleu": 2.83, "chrf_pp": 17.11},
+    {"wer": 46.67, "bleu": 2.58, "chrf_pp": 15.44},
+    {"wer": 18.18, "bleu": 4.4, "chrf_pp": 21.35},
+    {"wer": 20.0, "bleu": 24.81, "chrf_pp": 43.38},
+    {"wer": 30.77, "bleu": 11.25, "chrf_pp": 26.0},
+    {"wer": 60.0, "bleu": 2.86, "chrf_pp": 21.19},
+    {"wer": 30.0, "bleu": 4.37, "chrf_pp": 19.91},
+    {"wer": 26.32, "bleu": 21.34, "chrf_pp": 45.38},
+    {"wer": 48.15, "bleu": 14.26, "chrf_pp": 43.11},
+    {"wer": 46.43, "bleu": 11.4, "chrf_pp": 37.12},
+    {"wer": 35.14, "bleu": 6.8, "chrf_pp": 26.0},
+    {"wer": 32.0, "bleu": 2.16, "chrf_pp": 21.62},
+    {"wer": 31.82, "bleu": 6.9, "chrf_pp": 34.07},
+    {"wer": 39.29, "bleu": 7.61, "chrf_pp": 34.3},
+    {"wer": 57.14, "bleu": 6.33, "chrf_pp": 19.02},
+    {"wer": 0.0, "bleu": 7.82, "chrf_pp": 31.68},
+    {"wer": 45.0, "bleu": 7.42, "chrf_pp": 43.35}
+  ]
+}
