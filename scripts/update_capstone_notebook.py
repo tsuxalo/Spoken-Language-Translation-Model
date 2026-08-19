@@ -47,7 +47,9 @@ def main() -> None:
 
     badge = markdown(
         r"""
-[![Open In Colab](https://colab.research.google.com/assets/colab-badge.svg)](https://colab.research.google.com/github/tsuxalo/Spoken-Language-Translation-Model/blob/main/capstone_demo.ipynb)
+[![Open PR preview in Colab](https://colab.research.google.com/assets/colab-badge.svg)](https://colab.research.google.com/github/tsuxalo/Spoken-Language-Translation-Model/blob/codex/c1-integration/capstone_demo.ipynb)
+
+> During review, this badge opens the integration branch. The setup cell automatically prefers `main` once the required C1 files are merged there and otherwise uses `codex/c1-integration`.
 """
     )
 
@@ -128,10 +130,12 @@ The scored C1 path uses the tested waveform contract in `direct_c1.prepare_audio
     setup = code(
         r"""
 # Colab setup: clone the repository so local modules and aggregate artifacts
-# are available, then install the tested C1/comparison runtime. PyTorch is
-# intentionally supplied by Colab (or installed separately on local systems).
+# are available, then install a Colab-safe C1/comparison overlay. PyTorch and
+# core compiled scientific packages are intentionally supplied by Colab.
+import importlib.metadata
 import json
 import os
+import signal
 import subprocess
 import sys
 import urllib.request
@@ -140,20 +144,146 @@ from urllib.error import HTTPError
 
 IN_COLAB = "google.colab" in sys.modules
 REPOSITORY_URL = "https://github.com/tsuxalo/Spoken-Language-Translation-Model.git"
+REPOSITORY_RAW_URL = (
+    "https://raw.githubusercontent.com/tsuxalo/Spoken-Language-Translation-Model"
+)
+REPOSITORY_CANDIDATE_REFS = ("main", "codex/c1-integration")
+BINARY_DISTRIBUTIONS = ("numpy", "scipy", "pandas", "matplotlib", "pyarrow")
+
+
+def repository_ref_ready(ref):
+    request = urllib.request.Request(
+        f"{REPOSITORY_RAW_URL}/{ref}/requirements-colab.txt",
+        method="HEAD",
+    )
+    try:
+        with urllib.request.urlopen(request, timeout=30):
+            return True
+    except HTTPError as error:
+        if error.code == 404:
+            return False
+        raise
+
+
+def distribution_versions(names):
+    versions = {}
+    for name in names:
+        try:
+            versions[name] = importlib.metadata.version(name)
+        except importlib.metadata.PackageNotFoundError:
+            versions[name] = None
+    return versions
+
+
 if IN_COLAB:
-    repo_root = Path("/content/Spoken-Language-Translation-Model")
-    if not repo_root.exists():
-        subprocess.run(["git", "clone", "--depth", "1", REPOSITORY_URL, str(repo_root)], check=True)
+    requested_ref = os.environ.get("SLT_REPOSITORY_REF")
+    candidate_refs = (requested_ref,) if requested_ref else REPOSITORY_CANDIDATE_REFS
+    REPOSITORY_REF = next(
+        (ref for ref in candidate_refs if repository_ref_ready(ref)),
+        None,
+    )
+    if REPOSITORY_REF is None:
+        raise RuntimeError(
+            "Neither main nor codex/c1-integration contains the Colab bootstrap."
+        )
+
+    repo_root = Path(
+        os.environ.get(
+            "SLT_NOTEBOOK_REPO_ROOT",
+            "/content/Spoken-Language-Translation-Model",
+        )
+    )
+    if repo_root.exists() and not (repo_root / ".git").is_dir():
+        raise RuntimeError(f"Existing Colab path is not a Git checkout: {repo_root}")
+
+    if (repo_root / ".git").is_dir():
+        subprocess.run(
+            ["git", "-C", str(repo_root), "remote", "set-url", "origin", REPOSITORY_URL],
+            check=True,
+        )
+        subprocess.run(
+            ["git", "-C", str(repo_root), "fetch", "--depth", "1", "origin", REPOSITORY_REF],
+            check=True,
+        )
+        subprocess.run(
+            ["git", "-C", str(repo_root), "checkout", "--detach", "FETCH_HEAD"],
+            check=True,
+        )
+    else:
+        subprocess.run(
+            [
+                "git", "clone", "--depth", "1", "--branch", REPOSITORY_REF,
+                "--single-branch", REPOSITORY_URL, str(repo_root),
+            ],
+            check=True,
+        )
+
     os.chdir(repo_root)
-    subprocess.run([sys.executable, "-m", "pip", "install", "-r", "requirements-c1.txt"], check=True)
+
+    required_paths = (
+        Path("requirements-colab.txt"),
+        Path("direct_c1.py"),
+        Path("artifacts/comparison-v2/common_manifest_metrics.json"),
+        Path("artifacts/gpu-handoff/evaluation_metrics.json"),
+    )
+    missing_paths = [str(path) for path in required_paths if not path.is_file()]
+    if missing_paths:
+        raise RuntimeError(
+            f"Selected repository ref {REPOSITORY_REF!r} is incomplete: {missing_paths}"
+        )
+
+    checked_out_commit = subprocess.check_output(
+        ["git", "rev-parse", "HEAD"],
+        text=True,
+    ).strip()
+    print(f"Using repository ref {REPOSITORY_REF}: {checked_out_commit}")
+
+    binary_versions_before = distribution_versions(BINARY_DISTRIBUTIONS)
+    subprocess.run(
+        [
+            sys.executable,
+            "-m",
+            "pip",
+            "install",
+            "--upgrade-strategy",
+            "only-if-needed",
+            "-r",
+            "requirements-colab.txt",
+        ],
+        check=True,
+    )
+    binary_versions_after = distribution_versions(BINARY_DISTRIBUTIONS)
+    changed_binary_packages = {
+        name: (binary_versions_before[name], binary_versions_after[name])
+        for name in BINARY_DISTRIBUTIONS
+        if binary_versions_before[name] != binary_versions_after[name]
+    }
+    if changed_binary_packages:
+        print("Compiled packages changed during setup:", changed_binary_packages)
+        print("Colab is restarting once. Reconnect, then choose Runtime > Run all.")
+        sys.stdout.flush()
+        os.kill(os.getpid(), signal.SIGKILL)
+
+    subprocess.run(
+        [
+            sys.executable,
+            "-c",
+            (
+                "import datasets, librosa, numpy, pandas, pyarrow, scipy, soundfile, transformers; "
+                "print('Colab dependency import check passed')"
+            ),
+        ],
+        check=True,
+    )
+    print("Colab binary stack remained compatible:", binary_versions_after)
+else:
+    REPOSITORY_REF = os.environ.get("SLT_REPOSITORY_REF", "main")
 
 ARTIFACT_RAW_BASE = (
-    "https://raw.githubusercontent.com/tsuxalo/Spoken-Language-Translation-Model/"
-    "main/artifacts/comparison-v2"
+    f"{REPOSITORY_RAW_URL}/{REPOSITORY_REF}/artifacts/comparison-v2"
 )
 GPU_ARTIFACT_RAW_BASE = (
-    "https://raw.githubusercontent.com/tsuxalo/Spoken-Language-Translation-Model/"
-    "main/artifacts/gpu-handoff"
+    f"{REPOSITORY_RAW_URL}/{REPOSITORY_REF}/artifacts/gpu-handoff"
 )
 
 

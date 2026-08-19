@@ -100,7 +100,7 @@ git diff --check
 
 Final integration checks:
 
-- unit tests: **40 passed**;
+- unit tests: **45 passed**;
 - full-repository Ruff: **passed**;
 - compile check: **passed**;
 - notebook builder: deterministic; valid nbformat 4.5; every code cell parses;
@@ -120,7 +120,7 @@ Final integration checks:
 - The FLEURS shared demonstration has no gold English translation and is qualitative only.
 - Long-form chunking, quantization/FP16 parity, retraining, a direct-C1
   official-dev evaluation, and formal human scoring were not performed.
-- Clean free-Colab execution remains **UNVERIFIED**; the notebook contains the exact setup and demonstration cells, but this report does not claim they were run in Colab.
+- A free-Colab setup attempt reached the pinned FLEURS dataset load and revealed that installing the full local requirements into a live kernel replaced NumPy/SciPy files without restarting their loaded binary extensions. The corrected setup uses a Colab-specific overlay, selects the pre-merge integration ref, refreshes stale checkouts, and requests a restart if any compiled package changes. A corrected end-to-end all-cell run remains **UNVERIFIED**.
 
 ## Change-control status
 

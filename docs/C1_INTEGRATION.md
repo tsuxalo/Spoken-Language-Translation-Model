@@ -58,6 +58,14 @@ pip install -r requirements-c1.txt
 
 `requirements-c1.txt` pins the tested Transformers/PEFT/datasets/audio/metric stack. COMET remains isolated in `requirements-comet.txt`.
 
+The notebook uses `requirements-colab.txt` instead. Colab supplies PyTorch and
+preloads compiled NumPy/SciPy/Pandas packages, so replacing that stack inside a
+live kernel can mix binary extensions from the old version with Python files
+from the new version. The Colab overlay pins the project libraries while
+leaving those platform packages intact. The setup cell compares binary-package
+versions before and after installation and requests one runtime restart only if
+one actually changed.
+
 ## Provenance and membership discovery
 
 The aggregate discovery table is [`artifacts/comparison-v2/provenance_discovery.json`](../artifacts/comparison-v2/provenance_discovery.json). The exact C1 validation manifest was recovered locally: 1,037 rows, 543 alignment groups, all from NaijaS2ST official `train`, six held-out project-validation speakers, maximum duration 29.15 seconds, and matching file/membership hashes. The split audit records no speaker, pair, or normalized-English-target overlap with project training.
@@ -109,4 +117,4 @@ All plotted values come from [`artifacts/comparison-v2/training_histories.json`]
 - Numbers, dates, names, negation, dialect variation, noise, and unusual audio require human review.
 - Long-form chunking, quantization, FP16 parity, retraining, and official-dev reruns are outside this integration.
 - The published merged C1 package is not bitwise prediction-equivalent to the historical local-adapter evaluation path.
-- Free-Colab smoke status is **UNVERIFIED** until somebody runs the exact notebook in Colab.
+- A free-Colab setup attempt reached the pinned FLEURS load and exposed a live-kernel NumPy/SciPy replacement error. The bootstrap now avoids replacing Colab's compiled stack, selects the integration ref before merge, refreshes stale checkouts, and detects any remaining restart requirement. A complete corrected all-cell Colab run remains **UNVERIFIED** until the updated notebook is executed end to end.
