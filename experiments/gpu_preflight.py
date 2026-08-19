@@ -53,7 +53,7 @@ CORE_PACKAGES = [
 def package_version(module_name: str) -> str:
     try:
         module = importlib.import_module(module_name)
-    except Exception as exc:
+    except Exception as exc:  # noqa: BLE001 - diagnostic must report third-party import failures
         return f"IMPORT FAILED: {exc}"
     return str(getattr(module, "__version__", "unknown"))
 
@@ -81,6 +81,23 @@ def path_status(path_str: str) -> dict:
     }
 
 
+def required_paths_for(
+    stage: str,
+    explicit_paths: list[str],
+    mode: str,
+) -> list[str]:
+    """Resolve repository scripts plus stage defaults and/or explicit artifacts."""
+
+    paths = list(REQUIRED_SCRIPTS)
+    include_defaults = not explicit_paths or mode == "supplement"
+    if include_defaults and stage in {"train", "evaluate"}:
+        paths.extend(TRAIN_FILES)
+    if include_defaults and stage == "evaluate":
+        paths.extend(EVAL_FILES)
+    paths.extend(explicit_paths)
+    return list(dict.fromkeys(paths))
+
+
 def main() -> None:
     parser = argparse.ArgumentParser()
     parser.add_argument(
@@ -98,6 +115,18 @@ def main() -> None:
         default=None,
         help="Optional path to save the full preflight report.",
     )
+    parser.add_argument(
+        "--required-path",
+        action="append",
+        default=[],
+        help="Explicit stage artifact to validate. Repeat as needed.",
+    )
+    parser.add_argument(
+        "--required-path-mode",
+        choices=["replace", "supplement"],
+        default="replace",
+        help="Replace stage-relative artifact defaults or supplement them.",
+    )
     args = parser.parse_args()
 
     import torch
@@ -106,6 +135,7 @@ def main() -> None:
         "python": sys.version.replace("\n", " "),
         "executable": sys.executable,
         "stage": args.stage,
+        "required_path_mode": args.required_path_mode,
         "packages": {name: package_version(name) for name in CORE_PACKAGES},
         "cuda": {
             "available": bool(torch.cuda.is_available()),
@@ -139,11 +169,11 @@ def main() -> None:
             )
         report["cuda"]["devices"] = devices
 
-    required_paths = list(REQUIRED_SCRIPTS)
-    if args.stage in {"train", "evaluate"}:
-        required_paths.extend(TRAIN_FILES)
-    if args.stage == "evaluate":
-        required_paths.extend(EVAL_FILES)
+    required_paths = required_paths_for(
+        args.stage,
+        args.required_path,
+        args.required_path_mode,
+    )
 
     report["required_paths"] = [path_status(path) for path in required_paths]
 

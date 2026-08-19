@@ -7,6 +7,11 @@ __pycache__/
 venv/
 env/
 .venv/
+.venv-gpu/
+.venv-analysis/
+.hf-cache-final/
+.runtime-test/
+.validation-deps/
 
 # Distribution / packaging
 build/
@@ -55,3 +60,8 @@ outputs/
 
 # Temporary local environment snapshots
 before_cpu_fix.txt
+
+# C1 comparison privacy boundary: row-level manifests, references, predictions,
+# speaker IDs, local paths, and qualitative outputs stay local.
+artifacts/comparison-v2/private/
+artifacts/gpu-handoff/private/

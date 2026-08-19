@@ -6,7 +6,26 @@ import argparse
 import csv
 from pathlib import Path
 
-from evaluate_mt import BASELINES, TOKENIZER_ID, load_jsonl, score_predictions, translate
+try:
+    from .evaluate_mt import (
+        BASELINE_REVISIONS,
+        BASELINES,
+        TOKENIZER_ID,
+        load_jsonl,
+        score_predictions,
+        translate,
+    )
+    from .revisions import NLLB_600M_REVISION, revision_for
+except ImportError:  # pragma: no cover - direct script execution
+    from evaluate_mt import (
+        BASELINE_REVISIONS,
+        BASELINES,
+        TOKENIZER_ID,
+        load_jsonl,
+        score_predictions,
+        translate,
+    )
+    from revisions import NLLB_600M_REVISION, revision_for
 
 
 def parse_key_value(spec: str, noun: str) -> tuple[str, str]:
@@ -28,6 +47,10 @@ def parse_adapter(spec: str) -> tuple[str, str]:
 
 def parse_model(spec: str) -> tuple[str, str]:
     return parse_key_value(spec, "Model")
+
+
+def parse_revision(spec: str) -> tuple[str, str]:
+    return parse_key_value(spec, "Revision")
 
 
 def main() -> None:
@@ -61,6 +84,20 @@ def main() -> None:
         ),
     )
     parser.add_argument(
+        "--model-revision",
+        action="append",
+        type=parse_revision,
+        default=[],
+        metavar="LABEL=REVISION",
+    )
+    parser.add_argument(
+        "--baseline-revision",
+        action="append",
+        type=parse_revision,
+        default=[],
+        metavar="LABEL=REVISION",
+    )
+    parser.add_argument(
         "--adapter",
         action="append",
         type=parse_adapter,
@@ -69,6 +106,7 @@ def main() -> None:
         help="Repeat to evaluate multiple PEFT adapters.",
     )
     parser.add_argument("--adapter-base-model", default=TOKENIZER_ID)
+    parser.add_argument("--adapter-base-revision", default=NLLB_600M_REVISION)
     args = parser.parse_args()
 
     rows = load_jsonl(args.input)
@@ -80,12 +118,18 @@ def main() -> None:
     predictions_by_model: dict[str, list[str]] = {}
 
     baseline_labels = args.baseline or ["nllb", "afrinllb"]
+    baseline_revisions = dict(args.baseline_revision)
+    model_revisions = dict(args.model_revision)
 
     for label in baseline_labels:
         predictions = translate(
             model_id=BASELINES[label],
             source_texts=sources,
             batch_size=args.batch_size,
+            model_revision=baseline_revisions.get(
+                label,
+                BASELINE_REVISIONS[label],
+            ),
         )
         predictions_by_model[label] = predictions
         scores = score_predictions(predictions, references)
@@ -95,10 +139,14 @@ def main() -> None:
         )
 
     for label, model_id in args.model:
+        model_revision = model_revisions.get(label)
+        if model_revision is None:
+            model_revision = revision_for(model_id)
         predictions = translate(
             model_id=model_id,
             source_texts=sources,
             batch_size=args.batch_size,
+            model_revision=model_revision,
         )
         predictions_by_model[label] = predictions
         scores = score_predictions(predictions, references)
@@ -112,6 +160,7 @@ def main() -> None:
             model_id=args.adapter_base_model,
             source_texts=sources,
             batch_size=args.batch_size,
+            model_revision=args.adapter_base_revision,
             adapter_path=adapter_path,
         )
         predictions_by_model[label] = predictions

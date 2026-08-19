@@ -26,6 +26,14 @@ import numpy as np
 import pandas as pd
 import sacrebleu
 
+try:
+    from experiments.revisions import SSA_COMET_ID, SSA_COMET_REVISION
+except ImportError:  # pragma: no cover - direct execution from analysis/
+    import sys
+
+    sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
+    from experiments.revisions import SSA_COMET_ID, SSA_COMET_REVISION
+
 
 def corpus_bleu(refs: list[str], preds: list[str]) -> float:
     return sacrebleu.corpus_bleu(preds, [refs]).score
@@ -75,16 +83,86 @@ def add_asr_error_counts(df: pd.DataFrame) -> pd.DataFrame:
     return df
 
 
-def score_comet(df, prediction_columns, model_name, batch_size):
+def load_prediction_frame(path: str | Path) -> tuple[pd.DataFrame, list[str]]:
+    """Load a wide prediction CSV without converting empty hypotheses to NaN."""
+
+    df = pd.read_csv(path, keep_default_na=False)
+    if df.empty:
+        raise RuntimeError("Prediction CSV is empty.")
+
+    required = {
+        "alignment_id",
+        "speaker_id",
+        "hausa_gold",
+        "hausa_asr",
+        "english_ref",
+        "wer",
+    }
+    missing = required - set(df.columns)
+    if missing:
+        raise KeyError(f"Missing required columns: {sorted(missing)}")
+
+    prediction_columns = [
+        column for column in df.columns if column.startswith("prediction_")
+    ]
+    if not prediction_columns:
+        raise RuntimeError("No prediction_* columns found.")
+
+    if df[list(required)].isna().any().any():
+        raise RuntimeError("Required input columns contain NaN values.")
+    if df[prediction_columns].isna().any().any():
+        raise RuntimeError("Prediction columns contain NaN values.")
+    if "utterance_id" in df and df["utterance_id"].duplicated().any():
+        raise RuntimeError("Prediction CSV contains duplicate utterance_id rows.")
+    if any(len(df[column]) != len(df) for column in prediction_columns):
+        raise RuntimeError("Prediction columns are not aligned one-to-one with rows.")
+
+    return df, prediction_columns
+
+
+def resolve_comet_checkpoint(
+    model_name: str,
+    revision: str,
+    cache_dir: str | None = None,
+) -> str:
+    """Resolve an immutable COMET snapshot without monkey-patching COMET."""
+
+    from huggingface_hub import snapshot_download
+
+    snapshot = Path(
+        snapshot_download(
+            repo_id=model_name,
+            revision=revision,
+            cache_dir=cache_dir,
+        )
+    )
+    checkpoint = snapshot / "checkpoints" / "model.ckpt"
+    if not checkpoint.is_file():
+        raise RuntimeError(f"COMET checkpoint is missing from snapshot: {checkpoint}")
+    return str(checkpoint)
+
+
+def score_comet(
+    df,
+    prediction_columns,
+    model_name,
+    model_revision,
+    batch_size,
+    cache_dir=None,
+):
     try:
         import torch
-        from comet import download_model, load_from_checkpoint
+        from comet import load_from_checkpoint
     except ImportError as exc:
         raise RuntimeError(
             "COMET requested but unbabel-comet is not installed."
         ) from exc
 
-    model_path = download_model(model_name)
+    model_path = resolve_comet_checkpoint(
+        model_name=model_name,
+        revision=model_revision,
+        cache_dir=cache_dir,
+    )
     model = load_from_checkpoint(model_path)
     gpus = 1 if torch.cuda.is_available() else 0
 
@@ -188,34 +266,16 @@ def main():
     parser.add_argument("--seed", type=int, default=42)
     parser.add_argument("--qualitative-n", type=int, default=40)
     parser.add_argument("--comet", action="store_true")
-    parser.add_argument("--comet-model", default="McGill-NLP/ssa-comet-mtl")
+    parser.add_argument("--comet-model", default=SSA_COMET_ID)
+    parser.add_argument("--comet-revision", default=SSA_COMET_REVISION)
+    parser.add_argument("--comet-cache-dir", default=None)
     parser.add_argument("--comet-batch-size", type=int, default=8)
     args = parser.parse_args()
 
     output_dir = Path(args.output_dir)
     output_dir.mkdir(parents=True, exist_ok=True)
 
-    df = pd.read_csv(args.input)
-    if df.empty:
-        raise RuntimeError("Prediction CSV is empty.")
-
-    required = {
-        "alignment_id",
-        "speaker_id",
-        "hausa_gold",
-        "hausa_asr",
-        "english_ref",
-        "wer",
-    }
-    missing = required - set(df.columns)
-    if missing:
-        raise KeyError(f"Missing required columns: {sorted(missing)}")
-
-    prediction_columns = [
-        column for column in df.columns if column.startswith("prediction_")
-    ]
-    if not prediction_columns:
-        raise RuntimeError("No prediction_* columns found.")
+    df, prediction_columns = load_prediction_frame(args.input)
 
     labels = [c.removeprefix("prediction_") for c in prediction_columns]
     if args.baseline not in labels:
@@ -243,7 +303,9 @@ def main():
             df=df,
             prediction_columns=prediction_columns,
             model_name=args.comet_model,
+            model_revision=args.comet_revision,
             batch_size=args.comet_batch_size,
+            cache_dir=args.comet_cache_dir,
         )
         for label, values in comet_sentence_scores.items():
             column = f"sentence_comet_{label}"
@@ -452,6 +514,7 @@ def main():
         "candidate": args.candidate,
         "comet_enabled": args.comet,
         "comet_model": args.comet_model if args.comet else None,
+        "comet_revision": args.comet_revision if args.comet else None,
         "prediction_systems": labels,
     }
     (output_dir / "analysis_metadata.json").write_text(

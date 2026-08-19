@@ -35,8 +35,12 @@ from transformers import (
     Seq2SeqTrainingArguments,
 )
 
+try:
+    from .revisions import NLLB_600M_ID, NLLB_600M_REVISION
+except ImportError:  # pragma: no cover - direct script execution
+    from revisions import NLLB_600M_ID, NLLB_600M_REVISION
 
-DEFAULT_MODEL = "facebook/nllb-200-distilled-600M"
+DEFAULT_MODEL = NLLB_600M_ID
 
 SOURCE_LANG = "hau_Latn"
 TARGET_LANG = "eng_Latn"
@@ -126,6 +130,7 @@ def main() -> None:
         "--base-model",
         default=DEFAULT_MODEL,
     )
+    parser.add_argument("--base-model-revision", default=NLLB_600M_REVISION)
 
     parser.add_argument(
         "--output-dir",
@@ -184,7 +189,8 @@ def main() -> None:
     )
 
     tokenizer = NllbTokenizerFast.from_pretrained(
-        DEFAULT_MODEL,
+        args.base_model,
+        revision=args.base_model_revision,
         src_lang=SOURCE_LANG,
         tgt_lang=TARGET_LANG,
     )
@@ -197,6 +203,7 @@ def main() -> None:
 
     model = AutoModelForSeq2SeqLM.from_pretrained(
         args.base_model,
+        revision=args.base_model_revision,
         torch_dtype=dtype,
     )
 

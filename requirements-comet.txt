@@ -2,4 +2,7 @@
 # Prefer installing this in a separate environment after prediction generation,
 # because COMET may constrain/downgrade Transformers and related packages.
 -r requirements-research.txt
+# COMET 2.2.7 resolves TorchMetrics 0.10.x, which still imports pkg_resources.
+# The completed analysis environment used Setuptools 80.10.2; 81+ removes it.
+setuptools<81
 unbabel-comet==2.2.7
