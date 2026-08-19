@@ -2,12 +2,13 @@
 
 ## Outcome
 
-The C1 Hausa→English direct S2TT integration is complete on `codex/c1-integration`. The pinned exported package runs as a float32 `SpeechEncoderDecoderModel`; the cascade and historical Whisper+LoRA direct pilot remain runnable; the notebook demonstrates the three graphs sequentially; and all three systems completed a shared 1,037-example development evaluation. Publication state is reported by the integration branch and its draft pull request rather than inferred from this verification snapshot.
+The C1 Hausa→English direct S2TT integration landed through merged PRs #5 and #6. The pinned exported package runs as a float32 `SpeechEncoderDecoderModel`; the cascade and historical Whisper+LoRA direct pilot remain runnable; the notebook demonstrates the three graphs sequentially; and all three systems completed a shared 1,037-example development evaluation. This follow-up hardens the Colab bootstrap, records the completed CPU smoke test, and is reviewed separately from those merged PRs.
 
 ## Repository isolation
 
 - Remote: `https://github.com/tsuxalo/Spoken-Language-Translation-Model.git`
-- Exact remote `main` base: `e00bc441b55b9ca2f31091d56d5ef0893c4536f9` (`Added Work Bank`)
+- Historical integration base: `e00bc441b55b9ca2f31091d56d5ef0893c4536f9` (`Added Work Bank`)
+- Colab follow-up base: `0c72eaf9a8b822322f82fd7406da2a9178dc90b2` (includes the final research-poster merge)
 - Working branch: `codex/c1-integration`
 - Worktree: a separate clean clone; the pre-existing dirty checkout was not modified
 
@@ -100,10 +101,12 @@ git diff --check
 
 Final integration checks:
 
-- unit tests: **45 passed**;
+- unit tests: **50 passed**;
 - full-repository Ruff: **passed**;
 - compile check: **passed**;
 - notebook builder: deterministic; valid nbformat 4.5; every code cell parses;
+- sanitized Colab evidence: source parity confirmed; 11/11 code cells executed in
+  order on CPU with zero error outputs and no traceback text;
 - checked JSON artifacts: parse and cross-artifact membership/metric checks pass;
 - private artifacts and dependency overlay: ignored by Git;
 - secret-pattern scan: no Hugging Face or OpenAI token pattern found;
@@ -120,11 +123,13 @@ Final integration checks:
 - The FLEURS shared demonstration has no gold English translation and is qualitative only.
 - Long-form chunking, quantization/FP16 parity, retraining, a direct-C1
   official-dev evaluation, and formal human scoring were not performed.
-- A free-Colab setup attempt reached the pinned FLEURS dataset load and revealed that installing the full local requirements into a live kernel replaced NumPy/SciPy files without restarting their loaded binary extensions. The corrected setup uses a Colab-specific overlay, selects the pre-merge integration ref, refreshes stale checkouts, and requests a restart if any compiled package changes. A corrected end-to-end all-cell run remains **UNVERIFIED**.
+- The corrected notebook passed all cells on a Colab CPU runtime after removing the incompatible optional `torchao==0.10.0`; this proves end-to-end compatibility but not CUDA execution. The `MANUAL_COLAB_GPU_GATE` remains open until a complete run reports a CUDA device. This does not alter the independently validated aggregate record of the historical GPU handoff experiment.
 
 ## Change-control status
 
-The consolidated work is published for review from `codex/c1-integration` via a
-draft pull request. It does not merge the branch, upload model/data artifacts,
-or change Hugging Face visibility. Ignored private evaluation rows and local
-dependency environments remain outside Git.
+The original C1 consolidation and first Colab bootstrap fix are already merged
+through PRs #5 and #6. This later follow-up reuses `codex/c1-integration` for a
+separate draft review after incorporating current `main`; it does not merge the
+new review, upload model/data artifacts, or change Hugging Face visibility.
+Ignored private evaluation rows and local dependency environments remain
+outside Git.

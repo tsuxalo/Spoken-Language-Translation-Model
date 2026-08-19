@@ -90,6 +90,7 @@ The oracle gap is much larger than the gain from MT adaptation. Error-aware MT h
 - Bootstrap intervals do not capture training-seed variability because the LoRA study used one training seed.
 - Official dev has now been observed and is no longer available as an untouched future tuning set.
 - The 256-example direct S2TT pilot is exploratory and not a matched comparison with this final benchmark.
+- The later C1 direct-S2TT development comparison is also not a matched official-dev competitor.
 
 ## Earlier project stages
 
@@ -98,6 +99,9 @@ Whisper-small was fine-tuned on FLEURS Hausa. Held-out WER improved from 50.5% a
 
 ### Direct S2TT pilot
 A LoRA-adapted Whisper-small direct Hausa-audio→English pilot was trained on 256 NaijaS2ST examples. It produced **0.24 BLEU / 14.39 chrF++** and demonstrated that extreme low-data direct translation was not yet competitive. Because the pilot used a different development protocol, it is treated as exploratory rather than part of the final matched benchmark.
+
+### C1 direct S2TT development integration
+The repository also provides a pinned XLS-R/Wav2Vec2-to-mBART direct runtime in [`direct_c1.py`](direct_c1.py). C1 and the historical direct pilot were evaluated alongside the cascade on the same 1,037-example internal development membership. C1 improved chrF++ over the direct pilot, while the cascade remained strongest; because C1's membership influenced model and decoding selection, this remains development evidence rather than a matched official-dev result. See the [integration guide](docs/C1_INTEGRATION.md) and [verification report](docs/C1_VERIFICATION_REPORT.md).
 
 ## Reproducibility
 
@@ -111,10 +115,13 @@ The final experiment documents:
 - recorded recovery provenance for the completed GPU run
 
 See:
-- `docs/GPU_EXPERIMENT_RESULTS.md`
-- `docs/FINAL_EXPERIMENTS.md`
-- `docs/FINAL_RESEARCH_STORY.md`
-- `poster/FIGURE_CAPTIONS.md`
+- [`docs/GPU_EXPERIMENT_RESULTS.md`](docs/GPU_EXPERIMENT_RESULTS.md)
+- [`docs/FINAL_EXPERIMENTS.md`](docs/FINAL_EXPERIMENTS.md)
+- [`docs/FINAL_RESEARCH_STORY.md`](docs/FINAL_RESEARCH_STORY.md)
+- [`docs/C1_INTEGRATION.md`](docs/C1_INTEGRATION.md)
+- [`docs/C1_VERIFICATION_REPORT.md`](docs/C1_VERIFICATION_REPORT.md)
+- [`capstone_demo.ipynb`](capstone_demo.ipynb)
+- [`poster/FIGURE_CAPTIONS.md`](poster/FIGURE_CAPTIONS.md)
 
 ## Generate poster figures
 
@@ -130,6 +137,10 @@ Outputs are written to `poster/figures/` as both PNG and SVG.
 - `experiments/` — error-aware MT experiments and evaluation
 - `analysis/` — statistical/error analyses
 - `direct_pilot/` — exploratory direct S2TT pilot
+- `direct_c1.py` — pinned C1 direct Hausa-audio→English runtime
+- `artifacts/comparison-v2/` — privacy-safe shared-development C1 comparison aggregates
+- `artifacts/gpu-handoff/` — verified aggregate record of the completed GPU handoff experiment
+- `capstone_demo.ipynb` — output-free, Colab-ready architecture and evidence walkthrough
 - `docs/` — experiment verification and research documentation
 - `poster/` — final poster data, figures, and captions
 
