@@ -5,6 +5,11 @@
 # with newly installed Python files. Keep the platform stack and install only
 # the project packages that the notebook needs. Local and clean-environment
 # reproduction continues to use requirements-c1.txt.
+#
+# Some Colab images include an old optional torchao build. PEFT 0.20 raises
+# while merely probing that build, even though this notebook does not use
+# torchao quantization. The setup cell removes torchao only when it is present
+# below PEFT's supported minimum; compatible builds are left untouched.
 
 transformers==5.14.1
 peft==0.20.0

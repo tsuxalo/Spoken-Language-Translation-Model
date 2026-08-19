@@ -1,0 +1,7 @@
+# Local and CI verification environment. Install a matching PyTorch build first;
+# requirements-c1.txt deliberately leaves that platform-specific choice to the user.
+-r requirements-c1.txt
+
+jiwer==4.0.0
+pytest==8.4.2
+ruff==0.16.3

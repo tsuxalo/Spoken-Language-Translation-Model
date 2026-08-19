@@ -66,6 +66,29 @@ leaving those platform packages intact. The setup cell compares binary-package
 versions before and after installation and requests one runtime restart only if
 one actually changed.
 
+Colab may also preload `torchao` even though none of the three notebook systems
+uses torchao quantization. PEFT 0.20 rejects an installed torchao older than
+0.16 while probing optional LoRA dispatchers. The setup cell therefore removes
+only an incompatible old torchao build, leaves compatible builds untouched, and
+runs PEFT's torchao availability check in a clean subprocess before inference.
+
+## Colab smoke verification
+
+The corrected notebook completed an end-to-end Google Colab run from `main`
+commit `0c72eaf9a8b822322f82fd7406da2a9178dc90b2`. All 11 code cells executed in
+order without error outputs or traceback text. The setup removed Colab's
+unused `torchao==0.10.0`, preserved the loaded binary stack, and completed the
+cascade, historical direct-pilot, and C1 qualitative inference before every
+downstream results and figure cell ran. The sanitized evidence contract is
+[`artifacts/colab/notebook_smoke.json`](../artifacts/colab/notebook_smoke.json).
+
+The live inference table reported `device=cpu`. This establishes an
+**end-to-end Colab CPU smoke-test pass**, not a GPU-runtime pass. The
+`MANUAL_COLAB_GPU_GATE` remains open until the full notebook runs on an
+allocated Colab GPU and reports CUDA for live inference. This notebook result
+does not alter or recharacterize the separately verified historical GPU
+handoff experiment in [`artifacts/gpu-handoff/`](../artifacts/gpu-handoff/).
+
 ## Provenance and membership discovery
 
 The aggregate discovery table is [`artifacts/comparison-v2/provenance_discovery.json`](../artifacts/comparison-v2/provenance_discovery.json). The exact C1 validation manifest was recovered locally: 1,037 rows, 543 alignment groups, all from NaijaS2ST official `train`, six held-out project-validation speakers, maximum duration 29.15 seconds, and matching file/membership hashes. The split audit records no speaker, pair, or normalized-English-target overlap with project training.
@@ -117,4 +140,4 @@ All plotted values come from [`artifacts/comparison-v2/training_histories.json`]
 - Numbers, dates, names, negation, dialect variation, noise, and unusual audio require human review.
 - Long-form chunking, quantization, FP16 parity, retraining, and official-dev reruns are outside this integration.
 - The published merged C1 package is not bitwise prediction-equivalent to the historical local-adapter evaluation path.
-- A free-Colab setup attempt reached the pinned FLEURS load and exposed a live-kernel NumPy/SciPy replacement error. The bootstrap now avoids replacing Colab's compiled stack, selects the integration ref before merge, refreshes stale checkouts, and detects any remaining restart requirement. A complete corrected all-cell Colab run remains **UNVERIFIED** until the updated notebook is executed end to end.
+- The corrected notebook has passed end to end on a Colab CPU runtime. GPU allocation, CUDA inference, and GPU-memory behavior in the notebook remain **UNVERIFIED** under the open `MANUAL_COLAB_GPU_GATE`.

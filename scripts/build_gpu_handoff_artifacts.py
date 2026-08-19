@@ -20,8 +20,8 @@ REPOSITORY_ROOT = Path(__file__).resolve().parents[1]
 if str(REPOSITORY_ROOT) not in sys.path:
     sys.path.insert(0, str(REPOSITORY_ROOT))
 
-from experiments import revisions  # noqa: E402 - path bootstrap must run first
-from scripts.validate_gpu_handoff_artifacts import (  # noqa: E402
+from experiments import revisions
+from scripts.validate_gpu_handoff_artifacts import (
     MODEL_REVISIONS,
     RAW_ARTIFACT_HASHES,
     SCHEMA_VERSION,

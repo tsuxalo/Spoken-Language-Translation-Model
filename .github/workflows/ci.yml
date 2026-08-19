@@ -1,0 +1,62 @@
+name: CI
+
+on:
+  push:
+    branches:
+      - main
+      - codex/c1-integration
+  pull_request:
+
+permissions:
+  contents: read
+
+jobs:
+  verify:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    env:
+      MPLBACKEND: Agg
+      PYTHONUTF8: "1"
+
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+
+      - name: Set up Python 3.12
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+          cache: pip
+          cache-dependency-path: |
+            requirements-c1.txt
+            requirements-dev.txt
+
+      - name: Install CPU verification environment
+        run: |
+          python -m pip install --upgrade pip
+          python -m pip install torch==2.13.0 --index-url https://download.pytorch.org/whl/cpu
+          python -m pip install -r requirements-dev.txt
+
+      - name: Run unit tests
+        run: python -m pytest -q
+
+      - name: Run Ruff
+        run: python -m ruff check .
+
+      - name: Compile Python sources
+        run: python -m compileall -q .
+
+      - name: Validate public GPU aggregates
+        run: >-
+          python scripts/validate_gpu_handoff_artifacts.py
+          --artifact-root artifacts/gpu-handoff
+
+      - name: Verify deterministic notebook generation
+        run: |
+          python scripts/update_capstone_notebook.py
+          git diff --exit-code -- capstone_demo.ipynb
+
+      - name: Reproduce poster figures from public aggregates
+        run: |
+          python poster/generate_figures.py --output-dir "$RUNNER_TEMP/poster-figures"
+          test "$(find "$RUNNER_TEMP/poster-figures" -maxdepth 1 -type f | wc -l)" -eq 8

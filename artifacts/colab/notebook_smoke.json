@@ -1,0 +1,36 @@
+{
+  "schema_version": 1,
+  "status": "passed",
+  "scope": "end-to-end Colab CPU smoke test",
+  "evidence": {
+    "canonical_output_free_notebook_sha256": "e4f596e41a6057198b90043f651a318e5f249bb702ae6ce0091e862bfb5d98e5",
+    "executed_notebook_sha256": "efd708b10a5b28ea09a9c713f3337fbe0d3d15662a94d6feeaaddcf5506cc030",
+    "repository_ref": "main",
+    "checked_out_commit": "0c72eaf9a8b822322f82fd7406da2a9178dc90b2",
+    "notebook": {
+      "nbformat_major": 4,
+      "nbformat_minor": 5,
+      "cells": 26,
+      "code_cells": 11,
+      "execution_counts": [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11],
+      "error_outputs": 0
+    }
+  },
+  "runtime": {
+    "platform": "Google Colab",
+    "python": "3.11.9",
+    "device": "cpu",
+    "removed_optional_torchao": "0.10.0",
+    "binary_packages": {
+      "numpy": "2.0.2",
+      "scipy": "1.16.3",
+      "pandas": "2.2.3",
+      "matplotlib": "3.10.0",
+      "pyarrow": "25.0.1"
+    }
+  },
+  "claims": {
+    "gpu_notebook_gate_passed": false,
+    "gpu_handoff_results_affected": false
+  }
+}
