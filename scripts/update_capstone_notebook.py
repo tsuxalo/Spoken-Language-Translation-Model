@@ -47,9 +47,9 @@ def main() -> None:
 
     badge = markdown(
         r"""
-[![Open PR preview in Colab](https://colab.research.google.com/assets/colab-badge.svg)](https://colab.research.google.com/github/tsuxalo/Spoken-Language-Translation-Model/blob/codex/c1-integration/capstone_demo.ipynb)
+[![Open in Colab](https://colab.research.google.com/assets/colab-badge.svg)](https://colab.research.google.com/github/tsuxalo/Spoken-Language-Translation-Model/blob/main/capstone_demo.ipynb)
 
-> During review, this badge opens the integration branch. The setup cell automatically prefers `main` once the required C1 files are merged there and otherwise uses `codex/c1-integration`.
+> The setup cell uses `main` by default. Set `SLT_REPOSITORY_REF` before running it to reproduce another repository ref exactly.
 """
     )
 
@@ -132,6 +132,7 @@ The scored C1 path uses the tested waveform contract in `direct_c1.prepare_audio
 # Colab setup: clone the repository so local modules and aggregate artifacts
 # are available, then install a Colab-safe C1/comparison overlay. PyTorch and
 # core compiled scientific packages are intentionally supplied by Colab.
+import importlib
 import importlib.metadata
 import json
 import os
@@ -173,6 +174,39 @@ def distribution_versions(names):
         except importlib.metadata.PackageNotFoundError:
             versions[name] = None
     return versions
+
+
+def remove_incompatible_torchao():
+    # Colab can preload torchao even though this notebook does not use it.
+    from packaging.version import Version
+
+
+    try:
+        installed = importlib.metadata.version("torchao")
+    except importlib.metadata.PackageNotFoundError:
+        return None
+
+    if Version(installed) >= Version("0.16.0"):
+        return None
+
+    subprocess.run(
+        [sys.executable, "-m", "pip", "uninstall", "-y", "torchao"],
+        check=True,
+    )
+    importlib.invalidate_caches()
+    try:
+        remaining = importlib.metadata.version("torchao")
+    except importlib.metadata.PackageNotFoundError:
+        print(
+            "Removed optional torchao",
+            installed,
+            "because PEFT 0.20 requires torchao >= 0.16 when it is installed.",
+        )
+        return installed
+    raise RuntimeError(
+        f"Failed to remove incompatible torchao {remaining}; "
+        "restart the runtime and rerun setup."
+    )
 
 
 if IN_COLAB:
@@ -264,12 +298,15 @@ if IN_COLAB:
         sys.stdout.flush()
         os.kill(os.getpid(), signal.SIGKILL)
 
+    remove_incompatible_torchao()
     subprocess.run(
         [
             sys.executable,
             "-c",
             (
-                "import datasets, librosa, numpy, pandas, pyarrow, scipy, soundfile, transformers; "
+                "import datasets, librosa, numpy, pandas, peft, pyarrow, scipy, soundfile, transformers; "
+                "from peft.import_utils import is_torchao_available; "
+                "is_torchao_available(); "
                 "print('Colab dependency import check passed')"
             ),
         ],
