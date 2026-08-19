@@ -38,13 +38,11 @@ Design goals:
 from __future__ import annotations
 
 from pathlib import Path
-import math
 
+import matplotlib.pyplot as plt
 import numpy as np
 import pandas as pd
-import matplotlib.pyplot as plt
 from matplotlib.ticker import MaxNLocator
-
 
 ROOT = Path(__file__).resolve().parent
 DATA = ROOT / "data"
