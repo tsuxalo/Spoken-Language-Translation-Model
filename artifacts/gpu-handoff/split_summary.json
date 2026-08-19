@@ -1,0 +1,37 @@
+{
+  "schema_version": 1,
+  "seed": 42,
+  "validation_fraction": 0.1,
+  "grouping_key": "alignment_id plus exact bilingual-text connected components",
+  "input_rows": 14253,
+  "input_alignment_clusters": 4751,
+  "leakage_components": 4749,
+  "cross_alignment_text_pair_collisions": 2,
+  "max_component_alignment_clusters": 2,
+  "target_validation_alignment_clusters": 475,
+  "train": {
+    "rows": 12828,
+    "alignment_clusters": 4276,
+    "speakers": 60,
+    "mean_wer": 47.37896830614955,
+    "membership_sha256": "494f842886377edb3a4468acfc247dd5eae441aca445ec272f50d9eb51dc268b"
+  },
+  "validation": {
+    "rows": 1425,
+    "alignment_clusters": 475,
+    "speakers": 57,
+    "mean_wer": 47.034148537983704,
+    "membership_sha256": "9f3c657f50f1823b48c1ddf64583088c32e9d37bc1c9d8f196d95c0814f5a1ba"
+  },
+  "official_dev": {
+    "rows": 1500,
+    "alignment_clusters": 500,
+    "speakers": 6,
+    "status": "observed by the completed benchmark"
+  },
+  "train_validation_alignment_overlap": 0,
+  "train_validation_exact_bilingual_text_overlap": 0,
+  "train_official_dev_alignment_overlap": 0,
+  "validation_official_dev_alignment_overlap": 0,
+  "membership_hash_algorithm": "sha256(newline-delimited sorted UTF-8 utterance_id values)"
+}

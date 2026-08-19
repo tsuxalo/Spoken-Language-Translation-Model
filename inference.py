@@ -5,6 +5,7 @@ then NLLB-200 does Hausa text -> English text. Two pretrained/fine-tuned
 models chained together, no new training required for the translation step.
 """
 
+import gc
 import sys
 
 import librosa
@@ -17,8 +18,17 @@ from transformers import (
     WhisperProcessor,
 )
 
-ASR_MODEL_DIR = "nahomazmach/whisper-small-ha"  # Hugging Face Hub repo; use a local path (e.g. "./whisper-small-ha") instead if you trained your own copy
-MT_MODEL_ID = "facebook/nllb-200-distilled-600M"
+from experiments.revisions import (
+    NLLB_600M_ID,
+    NLLB_600M_REVISION,
+    WHISPER_HAUSA_ID,
+    WHISPER_HAUSA_REVISION,
+)
+
+ASR_MODEL_DIR = WHISPER_HAUSA_ID  # Use a local path instead for a local checkpoint.
+ASR_MODEL_REVISION = WHISPER_HAUSA_REVISION
+MT_MODEL_ID = NLLB_600M_ID
+MT_MODEL_REVISION = NLLB_600M_REVISION
 SAMPLING_RATE = 16_000
 
 _device = "cuda" if torch.cuda.is_available() else "cpu"
@@ -31,16 +41,21 @@ _mt_model = None
 def _load_asr_model(model_dir: str):
     global _asr_processor, _asr_model
     if _asr_model is None:
-        _asr_processor = WhisperProcessor.from_pretrained(model_dir)
-        _asr_model = WhisperForConditionalGeneration.from_pretrained(model_dir).to(_device)
+        revision = ASR_MODEL_REVISION if model_dir == ASR_MODEL_DIR else None
+        _asr_processor = WhisperProcessor.from_pretrained(model_dir, revision=revision)
+        _asr_model = WhisperForConditionalGeneration.from_pretrained(
+            model_dir, revision=revision
+        ).to(_device).eval()
     return _asr_processor, _asr_model
 
 
 def _load_mt_model():
     global _mt_tokenizer, _mt_model
     if _mt_model is None:
-        _mt_tokenizer = AutoTokenizer.from_pretrained(MT_MODEL_ID)
-        _mt_model = AutoModelForSeq2SeqLM.from_pretrained(MT_MODEL_ID).to(_device)
+        _mt_tokenizer = AutoTokenizer.from_pretrained(MT_MODEL_ID, revision=MT_MODEL_REVISION)
+        _mt_model = AutoModelForSeq2SeqLM.from_pretrained(
+            MT_MODEL_ID, revision=MT_MODEL_REVISION
+        ).to(_device).eval()
     return _mt_tokenizer, _mt_model
 
 
@@ -57,7 +72,8 @@ def transcribe(wav_path: str, model_dir: str = ASR_MODEL_DIR) -> str:
         audio_array, sampling_rate=SAMPLING_RATE, return_tensors="pt"
     ).input_features.to(_device)
 
-    predicted_ids = model.generate(input_features, language="hausa", task="transcribe")
+    with torch.inference_mode():
+        predicted_ids = model.generate(input_features, language="hausa", task="transcribe")
     return processor.tokenizer.batch_decode(predicted_ids, skip_special_tokens=True)[0].strip()
 
 
@@ -66,13 +82,28 @@ def translate_to_english(hausa_text: str) -> str:
     tokenizer.src_lang = "hau_Latn"
     inputs = tokenizer(hausa_text, return_tensors="pt").to(_device)
     forced_bos_token_id = tokenizer.convert_tokens_to_ids("eng_Latn")
-    generated_ids = model.generate(**inputs, forced_bos_token_id=forced_bos_token_id, max_length=256)
+    with torch.inference_mode():
+        generated_ids = model.generate(
+            **inputs, forced_bos_token_id=forced_bos_token_id, max_length=256
+        )
     return tokenizer.batch_decode(generated_ids, skip_special_tokens=True)[0].strip()
 
 
 def transcribe_and_translate(wav_path: str, model_dir: str = ASR_MODEL_DIR) -> tuple[str, str]:
     hausa_text = transcribe(wav_path, model_dir)
     return hausa_text, translate_to_english(hausa_text)
+
+
+def close() -> None:
+    """Release cascade models so another deployable system can use the GPU."""
+    global _asr_processor, _asr_model, _mt_tokenizer, _mt_model
+    _asr_processor = None
+    _asr_model = None
+    _mt_tokenizer = None
+    _mt_model = None
+    gc.collect()
+    if torch.cuda.is_available():
+        torch.cuda.empty_cache()
 
 
 if __name__ == "__main__":

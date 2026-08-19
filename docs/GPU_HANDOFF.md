@@ -5,6 +5,10 @@
 **Branch:** `karun/final-capstone-benchmark`  
 **Verified commit:** `8752d0d220b2ece8a81e572fd8134fb4e1a3b8df`
 
+> **Status:** This runbook's experiment is complete. See the verified results,
+> limitations, recovery provenance, and privacy-safe aggregates in
+> [`GPU_EXPERIMENT_RESULTS.md`](GPU_EXPERIMENT_RESULTS.md).
+
 ---
 
 # 1. What this experiment is testing

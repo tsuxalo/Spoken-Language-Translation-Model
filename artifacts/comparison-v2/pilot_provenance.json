@@ -1,0 +1,54 @@
+{
+  "schema_version": "1.0",
+  "label": "Common-manifest development pilot; not independent test evidence.",
+  "dataset": {
+    "id": "McGill-NLP/NaijaS2ST",
+    "revision": "898f51582750fe244693794f22e3f4b32c5baf95",
+    "license": "CC BY 4.0",
+    "official_source_split": "train",
+    "project_split": "validation",
+    "official_dev_loaded_during_this_task": false
+  },
+  "source_membership": {
+    "number_of_examples": 1037,
+    "alignment_clusters": 543,
+    "speakers": 6,
+    "maximum_duration_seconds": 29.15,
+    "validation_manifest_sha256": "ad70f94e7d9ca3bc2e287bc25c1d2a64fe06428a0fe5484e76be3c18adafd939",
+    "train_manifest_sha256": "b2d854e6bbd8ffc1e9bbb1017560a65a1a70a156f4d8c0d4b306da49f883718e",
+    "split_audit_sha256": "9623964f1e5dca7ca516f63a8fd2b3e7e27194f3d9c474e5782195199802aa69"
+  },
+  "frozen_selection": {
+    "seed": 42,
+    "cluster_key": "alignment_id",
+    "complete_groups_only": true,
+    "number_of_examples": 10,
+    "alignment_clusters": 5,
+    "speakers": 4,
+    "maximum_duration_seconds": 25.87,
+    "membership_sha256": "ffaca5a36430b0cc244d3bf3047f324acbb191ccee6f04a181411b7948e796dc",
+    "excluded_from_source_membership": 1027,
+    "exclusion_reason": "bounded seed-42 complete-group pilot selection",
+    "invalid_duration_exclusions": 0
+  },
+  "overlap_and_duplication_audit": {
+    "c1_train_example_overlap": 0,
+    "c1_train_alignment_overlap": 0,
+    "c1_train_normalized_target_overlap": 0,
+    "c1_train_speaker_overlap": 0,
+    "duplicated_alignment_rows": 5,
+    "unique_normalized_hausa_english_pairs": 5,
+    "unique_normalized_english_targets": 5,
+    "direct_pilot_training_overlap": "UNVERIFIED"
+  },
+  "limitations": [
+    "C1's internal validation membership influenced checkpoint selection, so this is development evidence.",
+    "Direct-pilot training overlap could not be fully audited. This pilot must not be presented as leakage-free.",
+    "Ten renditions across five alignment clusters are too few for a definitive ranking."
+  ],
+  "private_artifacts": [
+    "artifacts/comparison-v2/private/common_manifest.json",
+    "artifacts/comparison-v2/private/common_predictions.json",
+    "artifacts/comparison-v2/private/qualitative_review_queue.json"
+  ]
+}

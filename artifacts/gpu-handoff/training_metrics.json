@@ -1,0 +1,70 @@
+{
+  "schema_version": 1,
+  "seed": 42,
+  "conditions": {
+    "clean": {
+      "train_examples": 12828,
+      "validation_examples": 1425,
+      "train_source_counts": {
+        "clean": 12828
+      },
+      "validation_distribution": "noisy",
+      "epochs": 3.0,
+      "effective_batch_size": 8,
+      "learning_rate": 0.0002,
+      "max_length": 256,
+      "lora": {
+        "rank": 16,
+        "alpha": 32,
+        "dropout": 0.05,
+        "trainable_parameters": 2359296
+      },
+      "train_loss": 1.2948275074201727,
+      "validation_loss": 2.3761348724365234,
+      "train_runtime_seconds": 1520.8873
+    },
+    "noisy": {
+      "train_examples": 12828,
+      "validation_examples": 1425,
+      "train_source_counts": {
+        "asr_noise": 12828
+      },
+      "validation_distribution": "noisy",
+      "epochs": 3.0,
+      "effective_batch_size": 8,
+      "learning_rate": 0.0002,
+      "max_length": 256,
+      "lora": {
+        "rank": 16,
+        "alpha": 32,
+        "dropout": 0.05,
+        "trainable_parameters": 2359296
+      },
+      "train_loss": 2.1375754503835167,
+      "validation_loss": 2.103178024291992,
+      "train_runtime_seconds": 1469.5069
+    },
+    "mixed": {
+      "train_examples": 12828,
+      "validation_examples": 1425,
+      "train_source_counts": {
+        "asr_noise": 6414,
+        "clean": 6414
+      },
+      "validation_distribution": "noisy",
+      "epochs": 3.0,
+      "effective_batch_size": 8,
+      "learning_rate": 0.0002,
+      "max_length": 256,
+      "lora": {
+        "rank": 16,
+        "alpha": 32,
+        "dropout": 0.05,
+        "trainable_parameters": 2359296
+      },
+      "train_loss": 1.7554635303969792,
+      "validation_loss": 2.14680552482605,
+      "train_runtime_seconds": 1473.4453
+    }
+  }
+}

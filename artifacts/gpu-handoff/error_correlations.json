@@ -1,0 +1,126 @@
+{
+  "schema_version": 1,
+  "unit": "utterance-level association summarized as one coefficient",
+  "correlations": [
+    {
+      "system": "nllb",
+      "asr_error_feature": "wer",
+      "translation_metric": "sentence_chrf_pp",
+      "pearson_r": -0.1196219328762091
+    },
+    {
+      "system": "nllb",
+      "asr_error_feature": "substitution_rate",
+      "translation_metric": "sentence_chrf_pp",
+      "pearson_r": -0.30157709067126165
+    },
+    {
+      "system": "nllb",
+      "asr_error_feature": "deletion_rate",
+      "translation_metric": "sentence_chrf_pp",
+      "pearson_r": -0.15302745870449544
+    },
+    {
+      "system": "nllb",
+      "asr_error_feature": "insertion_rate",
+      "translation_metric": "sentence_chrf_pp",
+      "pearson_r": -0.08094894032912593
+    },
+    {
+      "system": "afrinllb",
+      "asr_error_feature": "wer",
+      "translation_metric": "sentence_chrf_pp",
+      "pearson_r": -0.12740129529202115
+    },
+    {
+      "system": "afrinllb",
+      "asr_error_feature": "substitution_rate",
+      "translation_metric": "sentence_chrf_pp",
+      "pearson_r": -0.30701384575764123
+    },
+    {
+      "system": "afrinllb",
+      "asr_error_feature": "deletion_rate",
+      "translation_metric": "sentence_chrf_pp",
+      "pearson_r": -0.1944212268907528
+    },
+    {
+      "system": "afrinllb",
+      "asr_error_feature": "insertion_rate",
+      "translation_metric": "sentence_chrf_pp",
+      "pearson_r": -0.0861682062021676
+    },
+    {
+      "system": "clean",
+      "asr_error_feature": "wer",
+      "translation_metric": "sentence_chrf_pp",
+      "pearson_r": -0.12786642198700937
+    },
+    {
+      "system": "clean",
+      "asr_error_feature": "substitution_rate",
+      "translation_metric": "sentence_chrf_pp",
+      "pearson_r": -0.3205442163283269
+    },
+    {
+      "system": "clean",
+      "asr_error_feature": "deletion_rate",
+      "translation_metric": "sentence_chrf_pp",
+      "pearson_r": -0.1689650107161612
+    },
+    {
+      "system": "clean",
+      "asr_error_feature": "insertion_rate",
+      "translation_metric": "sentence_chrf_pp",
+      "pearson_r": -0.0864532241834988
+    },
+    {
+      "system": "noisy",
+      "asr_error_feature": "wer",
+      "translation_metric": "sentence_chrf_pp",
+      "pearson_r": -0.1181891922905718
+    },
+    {
+      "system": "noisy",
+      "asr_error_feature": "substitution_rate",
+      "translation_metric": "sentence_chrf_pp",
+      "pearson_r": -0.27836267705339085
+    },
+    {
+      "system": "noisy",
+      "asr_error_feature": "deletion_rate",
+      "translation_metric": "sentence_chrf_pp",
+      "pearson_r": -0.17746438115315202
+    },
+    {
+      "system": "noisy",
+      "asr_error_feature": "insertion_rate",
+      "translation_metric": "sentence_chrf_pp",
+      "pearson_r": -0.08079154637416232
+    },
+    {
+      "system": "mixed",
+      "asr_error_feature": "wer",
+      "translation_metric": "sentence_chrf_pp",
+      "pearson_r": -0.10573711550643025
+    },
+    {
+      "system": "mixed",
+      "asr_error_feature": "substitution_rate",
+      "translation_metric": "sentence_chrf_pp",
+      "pearson_r": -0.29529936261683215
+    },
+    {
+      "system": "mixed",
+      "asr_error_feature": "deletion_rate",
+      "translation_metric": "sentence_chrf_pp",
+      "pearson_r": -0.18006077044047478
+    },
+    {
+      "system": "mixed",
+      "asr_error_feature": "insertion_rate",
+      "translation_metric": "sentence_chrf_pp",
+      "pearson_r": -0.06613007888100725
+    }
+  ]
+}

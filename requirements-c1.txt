@@ -1,0 +1,19 @@
+# Tested C1 / comparison-v2 runtime (Python 3.12 on Windows).
+#
+# Install PyTorch separately so the wheel matches the target machine:
+#   CPU:  pip install torch==2.13.0 --index-url https://download.pytorch.org/whl/cpu
+#   CUDA: follow https://pytorch.org/get-started/locally/ for a supported build
+# Then install this file. COMET remains isolated in requirements-comet.txt.
+
+transformers==5.14.1
+peft==0.20.0
+accelerate==1.14.0
+datasets==4.8.5
+numpy==2.4.6
+soundfile==0.14.0
+librosa==0.11.0
+scipy==1.18.0
+sentencepiece==0.2.2
+sacrebleu==2.6.0
+matplotlib==3.10.8
+pandas==3.0.1

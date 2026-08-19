@@ -29,7 +29,12 @@ from transformers import (
     set_seed,
 )
 
-DEFAULT_MODEL = "facebook/nllb-200-distilled-600M"
+try:
+    from .revisions import NLLB_600M_ID, NLLB_600M_REVISION
+except ImportError:  # pragma: no cover - direct script execution
+    from revisions import NLLB_600M_ID, NLLB_600M_REVISION
+
+DEFAULT_MODEL = NLLB_600M_ID
 SOURCE_LANG = "hau_Latn"
 TARGET_LANG = "eng_Latn"
 
@@ -106,6 +111,7 @@ def main() -> None:
     parser.add_argument("--val-jsonl", required=True)
     parser.add_argument("--mode", required=True, choices=["clean", "noisy", "mixed"])
     parser.add_argument("--base-model", default=DEFAULT_MODEL)
+    parser.add_argument("--base-model-revision", default=NLLB_600M_REVISION)
     parser.add_argument("--output-dir", required=True)
     parser.add_argument("--epochs", type=float, default=3.0)
     parser.add_argument("--batch-size", type=int, default=2)
@@ -150,7 +156,8 @@ def main() -> None:
     print("Validation source distribution: 100% ASR noise")
 
     tokenizer = NllbTokenizerFast.from_pretrained(
-        DEFAULT_MODEL,
+        args.base_model,
+        revision=args.base_model_revision,
         src_lang=SOURCE_LANG,
         tgt_lang=TARGET_LANG,
     )
@@ -161,6 +168,7 @@ def main() -> None:
 
     model = AutoModelForSeq2SeqLM.from_pretrained(
         args.base_model,
+        revision=args.base_model_revision,
         torch_dtype=dtype,
     )
 
@@ -262,6 +270,7 @@ def main() -> None:
         "mode": args.mode,
         "seed": args.seed,
         "base_model": args.base_model,
+        "base_model_revision": args.base_model_revision,
         "train_jsonl": args.train_jsonl,
         "val_jsonl": args.val_jsonl,
         "train_examples": len(train_examples),

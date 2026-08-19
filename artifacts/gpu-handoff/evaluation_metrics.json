@@ -1,0 +1,58 @@
+{
+  "schema_version": 1,
+  "task": "fixed Whisper Hausa ASR text -> MT -> English",
+  "evaluation_scope": "official NaijaS2ST dev",
+  "evaluation_input": "Whisper-produced Hausa text",
+  "evaluation_scale": {
+    "utterances": 1500,
+    "alignment_clusters": 500,
+    "speakers": 6
+  },
+  "systems": {
+    "nllb": {
+      "bleu": 13.332154853954078,
+      "chrf_pp": 37.505456693158116,
+      "ssa_comet": 0.44461354237794876
+    },
+    "afrinllb": {
+      "bleu": 14.213439308834998,
+      "chrf_pp": 38.26893419194543,
+      "ssa_comet": 0.4493538590669632
+    },
+    "clean": {
+      "bleu": 14.207013620308325,
+      "chrf_pp": 38.30824391888298,
+      "ssa_comet": 0.446873827368021
+    },
+    "noisy": {
+      "bleu": 15.25599299207294,
+      "chrf_pp": 39.123384580857994,
+      "ssa_comet": 0.4662904825707277
+    },
+    "mixed": {
+      "bleu": 15.362530633712403,
+      "chrf_pp": 39.363139422700186,
+      "ssa_comet": 0.4630189930796623
+    }
+  },
+  "gold_hausa_oracle": {
+    "nllb": {
+      "bleu": 28.803423734121647,
+      "chrf_pp": 52.13983998342945
+    },
+    "afrinllb": {
+      "bleu": 31.529052166684956,
+      "chrf_pp": 54.34231891886928
+    }
+  },
+  "row_alignment": {
+    "wide_table_shared_row_order_verified": true,
+    "unique_utterance_rows_verified": true
+  },
+  "malformed_asr_disclosure": {
+    "cases": 1,
+    "empty_hypothesis_system_count": 4,
+    "mixed_hypothesis": "What?",
+    "empty_hypotheses_retained_and_scored": true
+  }
+}

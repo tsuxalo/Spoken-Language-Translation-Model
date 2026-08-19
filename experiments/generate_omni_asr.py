@@ -21,9 +21,14 @@ import soundfile as sf
 from datasets import Audio, load_dataset
 from omnilingual_asr.models.inference.pipeline import ASRInferencePipeline
 
-from prepare_naijas2st_pairs import alignment_key
+try:
+    from .prepare_naijas2st_pairs import alignment_key
+    from .revisions import NAIJAS2ST_ID, NAIJAS2ST_REVISION
+except ImportError:  # pragma: no cover - direct script execution
+    from prepare_naijas2st_pairs import alignment_key
+    from revisions import NAIJAS2ST_ID, NAIJAS2ST_REVISION
 
-DATASET_ID = "McGill-NLP/NaijaS2ST"
+DATASET_ID = NAIJAS2ST_ID
 DEFAULT_MODEL_CARD = "omniASR_LLM_1B"
 LANG_CODE = "hau_Latn"
 
@@ -77,6 +82,7 @@ def main() -> None:
     parser.add_argument("--seed", type=int, default=42)
     parser.add_argument("--shuffle-buffer", type=int, default=2000)
     parser.add_argument("--model-card", default=DEFAULT_MODEL_CARD)
+    parser.add_argument("--dataset-revision", default=NAIJAS2ST_REVISION)
     args = parser.parse_args()
 
     references = load_pairs(args.pairs)
@@ -85,7 +91,12 @@ def main() -> None:
 
     pipeline = ASRInferencePipeline(model_card=args.model_card)
 
-    dataset = load_dataset(DATASET_ID, split=args.split, streaming=True)
+    dataset = load_dataset(
+        DATASET_ID,
+        split=args.split,
+        streaming=True,
+        revision=args.dataset_revision,
+    )
     dataset = dataset.cast_column("audio", Audio(decode=False))
 
     if args.shuffle_buffer > 0:

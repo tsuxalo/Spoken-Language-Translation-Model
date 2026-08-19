@@ -20,8 +20,13 @@ from pathlib import Path
 
 from datasets import load_dataset
 
+try:
+    from .revisions import NAIJAS2ST_ID, NAIJAS2ST_REVISION
+except ImportError:  # pragma: no cover - direct script execution
+    from revisions import NAIJAS2ST_ID, NAIJAS2ST_REVISION
 
-DATASET_ID = "McGill-NLP/NaijaS2ST"
+DATASET_ID = NAIJAS2ST_ID
+METADATA_COLUMNS = ["language", "text_id", "text"]
 
 
 def alignment_key(text_id: str, language: str) -> str:
@@ -53,6 +58,23 @@ def alignment_key(text_id: str, language: str) -> str:
 
     # If the ID does not follow the expected pattern, leave it unchanged.
     return text_id
+
+
+def load_metadata_dataset(split: str, revision: str, loader=load_dataset):
+    """Load only text metadata so streaming never materializes audio payloads."""
+
+    dataset = loader(
+        DATASET_ID,
+        split=split,
+        streaming=True,
+        revision=revision,
+        columns=METADATA_COLUMNS,
+    )
+    dataset = dataset.decode(False)
+    removable = [name for name in getattr(dataset, "features", {}) if name not in METADATA_COLUMNS]
+    if removable:
+        dataset = dataset.remove_columns(removable)
+    return dataset
 
 
 def main() -> None:
@@ -89,6 +111,7 @@ def main() -> None:
         default="experiments/generated/naijas2st_dev_pairs.jsonl",
         help="Destination JSONL file.",
     )
+    parser.add_argument("--dataset-revision", default=NAIJAS2ST_REVISION)
 
     # args is created HERE.
     args = parser.parse_args()
@@ -102,11 +125,7 @@ def main() -> None:
         f"split={args.split} in streaming mode..."
     )
 
-    dataset = load_dataset(
-        DATASET_ID,
-        split=args.split,
-        streaming=True,
-    )
+    dataset = load_metadata_dataset(args.split, args.dataset_revision)
 
     # ------------------------------------------------------------
     # Disable media decoding.
@@ -117,13 +136,6 @@ def main() -> None:
     # We do not need audio for this script, so decode(False) prevents
     # that dependency from being invoked.
     # ------------------------------------------------------------
-
-    dataset = dataset.decode(False)
-
-    # Remove the audio column completely because this script only needs
-    # textual metadata.
-    if "audio" in dataset.features:
-        dataset = dataset.remove_columns(["audio"])
 
     # Store unique English and Hausa sentences by alignment key.
     english = {}

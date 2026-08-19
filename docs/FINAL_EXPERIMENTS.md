@@ -3,6 +3,10 @@
 This package adds a controlled error-aware MT study, a strong Omnilingual-ASR
 baseline, and cluster-bootstrap statistical analysis.
 
+> **Status:** The required fixed-Whisper-ASR experiment is complete. See
+> [`GPU_EXPERIMENT_RESULTS.md`](GPU_EXPERIMENT_RESULTS.md) for the verified
+> official-dev results and limitations. Omnilingual-ASR remains optional.
+
 ## Files
 
 - `experiments/make_research_splits.py`
@@ -15,12 +19,14 @@ baseline, and cluster-bootstrap statistical analysis.
 
 ## Core experimental rule
 
-Use NaijaS2ST `train` only to create training/internal validation data.
-Keep NaijaS2ST `dev` untouched until final evaluation.
+NaijaS2ST `train` alone created training/internal validation data. Official
+NaijaS2ST `dev` stayed untouched until the completed final evaluation; it has
+now been observed and must not be treated as an untouched future tuning set.
 
-The internal split groups by `alignment_id` because multiple speakers record
-the same sentence. This prevents the same Hausa-English text pair from leaking
-into both training and validation.
+The corrected internal split groups by `alignment_id`, verifies one exact
+bilingual pair per alignment, and joins different alignments that share an
+exact Hausa-English pair into a connected component. This prevents the same
+bilingual target from leaking through a duplicated alignment.
 
 The three LoRA conditions are exposure-matched:
 

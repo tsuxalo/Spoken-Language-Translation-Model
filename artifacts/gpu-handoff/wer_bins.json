@@ -1,0 +1,181 @@
+{
+  "schema_version": 1,
+  "privacy": "aggregate bins only; no row-level values",
+  "bins": [
+    {
+      "wer_bin": "<=20",
+      "mean_wer": 12.977172962824952,
+      "mean_sentence_chrf": 44.15408136238567,
+      "n": 132,
+      "system": "nllb"
+    },
+    {
+      "wer_bin": "20-40",
+      "mean_wer": 32.422991247471245,
+      "mean_sentence_chrf": 40.02783245277821,
+      "n": 489,
+      "system": "nllb"
+    },
+    {
+      "wer_bin": "40-60",
+      "mean_wer": 49.38296273989787,
+      "mean_sentence_chrf": 36.43834682505025,
+      "n": 598,
+      "system": "nllb"
+    },
+    {
+      "wer_bin": "60-80",
+      "mean_wer": 68.00817728782707,
+      "mean_sentence_chrf": 30.914174736091955,
+      "n": 232,
+      "system": "nllb"
+    },
+    {
+      "wer_bin": ">80",
+      "mean_wer": 227.8479311815388,
+      "mean_sentence_chrf": 21.738731047491594,
+      "n": 49,
+      "system": "nllb"
+    },
+    {
+      "wer_bin": "<=20",
+      "mean_wer": 12.977172962824952,
+      "mean_sentence_chrf": 47.504991930810974,
+      "n": 132,
+      "system": "afrinllb"
+    },
+    {
+      "wer_bin": "20-40",
+      "mean_wer": 32.422991247471245,
+      "mean_sentence_chrf": 41.178694760754844,
+      "n": 489,
+      "system": "afrinllb"
+    },
+    {
+      "wer_bin": "40-60",
+      "mean_wer": 49.38296273989787,
+      "mean_sentence_chrf": 37.54879037617914,
+      "n": 598,
+      "system": "afrinllb"
+    },
+    {
+      "wer_bin": "60-80",
+      "mean_wer": 68.00817728782707,
+      "mean_sentence_chrf": 31.935597626274983,
+      "n": 232,
+      "system": "afrinllb"
+    },
+    {
+      "wer_bin": ">80",
+      "mean_wer": 227.8479311815388,
+      "mean_sentence_chrf": 23.350919077135156,
+      "n": 49,
+      "system": "afrinllb"
+    },
+    {
+      "wer_bin": "<=20",
+      "mean_wer": 12.977172962824952,
+      "mean_sentence_chrf": 46.547347740899454,
+      "n": 132,
+      "system": "clean"
+    },
+    {
+      "wer_bin": "20-40",
+      "mean_wer": 32.422991247471245,
+      "mean_sentence_chrf": 40.97842200060969,
+      "n": 489,
+      "system": "clean"
+    },
+    {
+      "wer_bin": "40-60",
+      "mean_wer": 49.38296273989787,
+      "mean_sentence_chrf": 37.29346060680468,
+      "n": 598,
+      "system": "clean"
+    },
+    {
+      "wer_bin": "60-80",
+      "mean_wer": 68.00817728782707,
+      "mean_sentence_chrf": 32.089398188503836,
+      "n": 232,
+      "system": "clean"
+    },
+    {
+      "wer_bin": ">80",
+      "mean_wer": 227.8479311815388,
+      "mean_sentence_chrf": 23.191575728721364,
+      "n": 49,
+      "system": "clean"
+    },
+    {
+      "wer_bin": "<=20",
+      "mean_wer": 12.977172962824952,
+      "mean_sentence_chrf": 45.93076197977814,
+      "n": 132,
+      "system": "noisy"
+    },
+    {
+      "wer_bin": "20-40",
+      "mean_wer": 32.422991247471245,
+      "mean_sentence_chrf": 41.632922563846,
+      "n": 489,
+      "system": "noisy"
+    },
+    {
+      "wer_bin": "40-60",
+      "mean_wer": 49.38296273989787,
+      "mean_sentence_chrf": 38.312126056465125,
+      "n": 598,
+      "system": "noisy"
+    },
+    {
+      "wer_bin": "60-80",
+      "mean_wer": 68.00817728782707,
+      "mean_sentence_chrf": 33.12121634981839,
+      "n": 232,
+      "system": "noisy"
+    },
+    {
+      "wer_bin": ">80",
+      "mean_wer": 227.8479311815388,
+      "mean_sentence_chrf": 23.03395408805723,
+      "n": 49,
+      "system": "noisy"
+    },
+    {
+      "wer_bin": "<=20",
+      "mean_wer": 12.977172962824952,
+      "mean_sentence_chrf": 46.62727010336766,
+      "n": 132,
+      "system": "mixed"
+    },
+    {
+      "wer_bin": "20-40",
+      "mean_wer": 32.422991247471245,
+      "mean_sentence_chrf": 42.01826639697926,
+      "n": 489,
+      "system": "mixed"
+    },
+    {
+      "wer_bin": "40-60",
+      "mean_wer": 49.38296273989787,
+      "mean_sentence_chrf": 38.422411317890656,
+      "n": 598,
+      "system": "mixed"
+    },
+    {
+      "wer_bin": "60-80",
+      "mean_wer": 68.00817728782707,
+      "mean_sentence_chrf": 33.159375647725156,
+      "n": 232,
+      "system": "mixed"
+    },
+    {
+      "wer_bin": ">80",
+      "mean_wer": 227.8479311815388,
+      "mean_sentence_chrf": 23.58885913015198,
+      "n": 49,
+      "system": "mixed"
+    }
+  ]
+}

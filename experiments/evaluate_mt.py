@@ -29,12 +29,30 @@ from transformers import (
     NllbTokenizerFast,
 )
 
+try:
+    from .revisions import (
+        AFRINLLB_ID,
+        AFRINLLB_REVISION,
+        NLLB_600M_ID,
+        NLLB_600M_REVISION,
+    )
+except ImportError:  # pragma: no cover - direct script execution
+    from revisions import (
+        AFRINLLB_ID,
+        AFRINLLB_REVISION,
+        NLLB_600M_ID,
+        NLLB_600M_REVISION,
+    )
 
-TOKENIZER_ID = "facebook/nllb-200-distilled-600M"
+TOKENIZER_ID = NLLB_600M_ID
 
 BASELINES = {
-    "nllb": "facebook/nllb-200-distilled-600M",
-    "afrinllb": "AfriNLP/AfriNLLB-12enc-12dec-full-ft",
+    "nllb": NLLB_600M_ID,
+    "afrinllb": AFRINLLB_ID,
+}
+BASELINE_REVISIONS = {
+    "nllb": NLLB_600M_REVISION,
+    "afrinllb": AFRINLLB_REVISION,
 }
 
 SOURCE_LANG = "hau_Latn"
@@ -58,6 +76,8 @@ def translate(
     model_id: str,
     source_texts: list[str],
     batch_size: int,
+    model_revision: str,
+    tokenizer_revision: str = NLLB_600M_REVISION,
     adapter_path: str | None = None,
 ) -> list[str]:
     """Translate a batch of Hausa sentences into English."""
@@ -73,6 +93,7 @@ def translate(
     # across our baseline comparison.
     tokenizer = NllbTokenizerFast.from_pretrained(
         TOKENIZER_ID,
+        revision=tokenizer_revision,
         src_lang=SOURCE_LANG,
         tgt_lang=TARGET_LANG,
     )
@@ -83,6 +104,7 @@ def translate(
     # Older versions used `torch_dtype`, which now produces a deprecation warning.
     model = AutoModelForSeq2SeqLM.from_pretrained(
         model_id,
+        revision=model_revision,
         dtype=dtype,
     )
 
@@ -223,6 +245,9 @@ def main() -> None:
         default=TOKENIZER_ID,
         help="Foundation model used underneath the LoRA adapter.",
     )
+    parser.add_argument("--nllb-revision", default=NLLB_600M_REVISION)
+    parser.add_argument("--afrinllb-revision", default=AFRINLLB_REVISION)
+    parser.add_argument("--adapter-base-revision", default=NLLB_600M_REVISION)
 
     args = parser.parse_args()
 
@@ -242,11 +267,16 @@ def main() -> None:
     predictions_by_model = {}
 
     # First evaluate the two fixed baselines.
+    requested_revisions = {
+        "nllb": args.nllb_revision,
+        "afrinllb": args.afrinllb_revision,
+    }
     for label, model_id in BASELINES.items():
         predictions = translate(
             model_id=model_id,
             source_texts=sources,
             batch_size=args.batch_size,
+            model_revision=requested_revisions[label],
         )
 
         predictions_by_model[label] = predictions
@@ -268,6 +298,7 @@ def main() -> None:
             model_id=args.adapter_base_model,
             source_texts=sources,
             batch_size=args.batch_size,
+            model_revision=args.adapter_base_revision,
             adapter_path=args.adapter,
         )
 

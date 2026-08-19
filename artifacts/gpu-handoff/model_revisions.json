@@ -1,0 +1,42 @@
+{
+  "schema_version": 1,
+  "status_note": "Revisions were resolved and captured for the completed run. Original commands did not enforce immutable revisions; future repository defaults do.",
+  "resources": {
+    "naijas2st": {
+      "hub_id": "McGill-NLP/NaijaS2ST",
+      "resolved_revision": "898f51582750fe244693794f22e3f4b32c5baf95",
+      "enforced_during_completed_run": false,
+      "future_default_revision": true
+    },
+    "whisper_hausa": {
+      "hub_id": "nahomazmach/whisper-small-ha",
+      "resolved_revision": "c4e2b47d88ae8b3ee0a605e09863b93aafca72e3",
+      "enforced_during_completed_run": false,
+      "future_default_revision": true
+    },
+    "nllb_600m": {
+      "hub_id": "facebook/nllb-200-distilled-600M",
+      "resolved_revision": "f8d333a098d19b4fd9a8b18f94170487ad3f821d",
+      "enforced_during_completed_run": false,
+      "future_default_revision": true
+    },
+    "afrinllb": {
+      "hub_id": "AfriNLP/AfriNLLB-12enc-12dec-full-ft",
+      "resolved_revision": "53b1bf8d09454d092a474a8e78d5c95a32b53154",
+      "enforced_during_completed_run": false,
+      "future_default_revision": true
+    },
+    "nllb_3_3b": {
+      "hub_id": "facebook/nllb-200-3.3B",
+      "resolved_revision": "1a07f7d195896b2114afcb79b7b57ab512e7b43e",
+      "enforced_during_completed_run": false,
+      "future_default_revision": true
+    },
+    "ssa_comet": {
+      "hub_id": "McGill-NLP/ssa-comet-mtl",
+      "resolved_revision": "6e64e0a56ce69524c67f304b092725687a362ef8",
+      "enforced_during_completed_run": false,
+      "future_default_revision": true
+    }
+  }
+}

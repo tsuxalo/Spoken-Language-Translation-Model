@@ -1,0 +1,106 @@
+{
+  "schema_version": "1.0",
+  "verified_at_utc": "2026-08-18",
+  "model_id": "lEtoileNoir/Hausa_English_Direct_S2TT",
+  "requested_revision": "cd84a6c2e447b098d772d6ad59b247f16c29075d",
+  "resolved_revision": "cd84a6c2e447b098d772d6ad59b247f16c29075d",
+  "friendly_tag": {
+    "name": "c1-development-champion-v1",
+    "exists": true,
+    "target_commit": "ba385f716825cf3d5ed931319927643fdaa2e612",
+    "matches_requested_revision": false,
+    "contract_file_hashes_match_requested_revision": true
+  },
+  "architecture": {
+    "config_architectures": [
+      "SpeechEncoderDecoderModel"
+    ],
+    "auto_config_class": "SpeechEncoderDecoderConfig",
+    "auto_model_mapping": "SpeechEncoderDecoderModel",
+    "actual_loaded_model_class": "SpeechEncoderDecoderModel",
+    "encoder_model_type": "wav2vec2",
+    "encoder_architecture": "Wav2Vec2ForPreTraining",
+    "decoder_model_type": "mbart",
+    "decoder_architecture": "MBartForConditionalGeneration",
+    "auto_map": null,
+    "trust_remote_code_required": false,
+    "trust_remote_code_used": false
+  },
+  "processor": {
+    "class": "Wav2Vec2Processor",
+    "feature_extractor_class": "Wav2Vec2FeatureExtractor",
+    "tokenizer_class": "MBart50Tokenizer",
+    "sampling_rate": 16000,
+    "return_attention_mask": true,
+    "do_normalize": true,
+    "package_note": "processor_bundle.json records manual Wav2Vec2FeatureExtractor + tokenizer assembly, while Wav2Vec2Processor.from_pretrained was also verified to construct the same concrete classes."
+  },
+  "token_ids": {
+    "decoder_start_token_id": 2,
+    "eos_token_id": 2,
+    "pad_token_id": 1,
+    "forced_bos_token_id": 250004,
+    "forced_eos_token_id": 2
+  },
+  "generation": {
+    "num_beams": 5,
+    "max_new_tokens": 128,
+    "early_stopping": true,
+    "no_repeat_ngram_size": 3,
+    "repetition_penalty": 1.0,
+    "length_penalty": 1.0
+  },
+  "parameters": {
+    "hub_safetensors_total": 792989312,
+    "loaded_sum_parameter_numel": 792989312,
+    "dtype": "float32"
+  },
+  "storage": {
+    "hub_used_storage_bytes": 3189159500,
+    "package_manifest_bytes": 3189273436,
+    "weight_files": [
+      {
+        "name": "model-00001-of-00004.safetensors",
+        "bytes": 1024221336,
+        "sha256": "ab9b1c7b56237c8b5889a0dc42af1b1bc8dc6b3415546f19635b57052855370a"
+      },
+      {
+        "name": "model-00002-of-00004.safetensors",
+        "bytes": 999403960,
+        "sha256": "8183c22653aa4ff1ab8c113daca6d4bbcf8f743617bd5b3ecf38da359eb8c242"
+      },
+      {
+        "name": "model-00003-of-00004.safetensors",
+        "bytes": 999339960,
+        "sha256": "4a9091608eaa69a13ea44701db5a04738b04c83773d35ad87da49bf6a7d7b46b"
+      },
+      {
+        "name": "model-00004-of-00004.safetensors",
+        "bytes": 149084424,
+        "sha256": "7cb9207889e74cc7248884fa4a5a5ec11fc318fbb807724d8c7ad796336ee564"
+      }
+    ]
+  },
+  "license": "Apache-2.0",
+  "training_dataset": {
+    "id": "McGill-NLP/NaijaS2ST",
+    "revision": "898f51582750fe244693794f22e3f4b32c5baf95",
+    "license": "CC BY 4.0",
+    "attribution_required": true
+  },
+  "transformers_version_in_artifact": "5.14.1",
+  "configuration_file_sha256": {
+    "artifact.json": "5162f7bf4329ba3a0641f3a8d836fa59d97401c9c00f1396c7843f3d2b2a55d1",
+    "config.json": "93350860e46861d4987390ed1538fc2f6c588bf23d72bcc5648127c88040fd70",
+    "decoding_config.json": "27f1a0179990cc718485ccaf95c1cb863badc382a031b30a11ea170822d8c9b8",
+    "frozen_evidence.json": "fc79d5e436e291bb40c9fcc138a7f1b4078d172e4c6e4b154f238143dc6ed729",
+    "generation_config.json": "14d249300e86d3b0b9ee1f634abaa8545c904d314475b163bc1c5b92c3a6a8a4",
+    "model.safetensors.index.json": "4ac30370323a9be6cb9592e620aa36cc7bc503315b83051dbb0702617f151181",
+    "package_manifest.json": "5ce7ef7eb3d044c7592d8680fceb4b906405c8e2dbd982e211617e8805550e57",
+    "preprocessor_config.json": "35818933f1836450939a59d1f0ae7e4386d0d64d1560ce60a65001af62ac3f71",
+    "processor_bundle.json": "8c1fc33bd9e50b41c96669919a61d309c084f65656cb486092344f32a3561db5",
+    "revisions.json": "27948c089b2070fdbd4f7b2a4bc547b88e1a0e9831f966c5aa40be4b82bf3369",
+    "tokenizer_config.json": "3536fabb6921c4542b97ad057f18aa756539674059795d7234703faa60f2ce01",
+    "training_config.yaml": "7d1ff5db3cb563fbe9601198b7f2391cc8eb48a3b0557ddec4c0e545b1b89f4a"
+  }
+}

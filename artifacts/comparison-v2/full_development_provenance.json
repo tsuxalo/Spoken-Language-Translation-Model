@@ -1,0 +1,71 @@
+{
+  "schema_version": "1.0",
+  "label": "Full C1 internal-validation development evaluation; not independent test evidence.",
+  "dataset": {
+    "id": "McGill-NLP/NaijaS2ST",
+    "revision": "898f51582750fe244693794f22e3f4b32c5baf95",
+    "license": "CC BY 4.0",
+    "official_source_split": "train",
+    "project_split": "validation",
+    "official_dev_loaded_during_this_task": false
+  },
+  "source_membership": {
+    "number_of_examples": 1037,
+    "alignment_clusters": 543,
+    "speakers": 6,
+    "maximum_duration_seconds": 29.15,
+    "audio_hours": 3.6040694444444445,
+    "validation_manifest_sha256": "ad70f94e7d9ca3bc2e287bc25c1d2a64fe06428a0fe5484e76be3c18adafd939",
+    "train_manifest_sha256": "b2d854e6bbd8ffc1e9bbb1017560a65a1a70a156f4d8c0d4b306da49f883718e",
+    "split_audit_sha256": "9623964f1e5dca7ca516f63a8fd2b3e7e27194f3d9c474e5782195199802aa69",
+    "frozen_membership_sha256": "afe66df22fe0a86e3bd88fd9bd9c21ccc12a8a70cf34175072e841284b932bd4"
+  },
+  "coverage": {
+    "audio_files_found": 1037,
+    "audio_files_missing": 0,
+    "ambiguous_audio_matches": 0,
+    "systems": 3,
+    "prediction_rows": 3111,
+    "successful_predictions": 3111,
+    "empty_predictions": 0
+  },
+  "overlap_audit": {
+    "c1_train_example_overlap": 0,
+    "c1_train_alignment_overlap": 0,
+    "c1_train_normalized_target_overlap": 0,
+    "c1_train_speaker_overlap": 0,
+    "direct_pilot_training_overlap": "UNVERIFIED"
+  },
+  "c1_historical_reconciliation": {
+    "historical_metrics": {
+      "BLEU": 0.4991742421387969,
+      "chrF++": 16.668232156701308,
+      "inference_path": "local step-185 adapter evaluated in bfloat16"
+    },
+    "fresh_published_package_metrics": {
+      "BLEU": 0.37733211328323196,
+      "chrF++": 16.57431511012504,
+      "inference_path": "pinned merged Hub package evaluated in float32"
+    },
+    "same_example_ids": 1037,
+    "same_references": 1037,
+    "different_predictions": 611,
+    "weight_shard_etags_match_between_pinned_commit_and_friendly_tag": true,
+    "bf16_spot_check": {
+      "fresh_package_examples_tested": 2,
+      "historical_predictions_reproduced": 0
+    },
+    "interpretation": "The historical local-adapter evaluation is not bitwise reproduced by the exported merged package. Membership and scoring are not the cause. The remaining difference is inference-artifact/runtime numerical behavior, so fresh package scores and historical scores are reported separately."
+  },
+  "limitations": [
+    "C1's internal validation membership influenced checkpoint and decoding selection, so this is development evidence rather than an independent test.",
+    "Direct-pilot training overlap could not be fully audited. This evaluation must not be presented as leakage-free.",
+    "The published C1 package does not bitwise reproduce the historical local-adapter predictions; both result sets retain their own inference-path labels.",
+    "Automatic BLEU and chrF++ do not establish factual fidelity; names, numbers, dates, and negation remain queued for human review."
+  ],
+  "private_artifacts": [
+    "artifacts/comparison-v2/private/full_development_manifest.json",
+    "artifacts/comparison-v2/private/full_development_predictions.json",
+    "artifacts/comparison-v2/private/full_development_qualitative_review_queue.json"
+  ]
+}

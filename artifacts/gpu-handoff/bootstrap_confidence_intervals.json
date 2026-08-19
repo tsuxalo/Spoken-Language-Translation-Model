@@ -1,0 +1,143 @@
+{
+  "schema_version": 1,
+  "replicates": 1000,
+  "cluster_key": "alignment_id",
+  "uncertainty_scope": "evaluation-cluster sampling, not training seeds",
+  "intervals": [
+    {
+      "system": "nllb",
+      "metric": "bleu",
+      "point_estimate": 13.332154853954078,
+      "ci_2.5": 12.181726716593761,
+      "ci_97.5": 14.344920774696071,
+      "bootstrap_replicates": 1000,
+      "cluster_key": "alignment_id"
+    },
+    {
+      "system": "nllb",
+      "metric": "chrf_pp",
+      "point_estimate": 37.505456693158116,
+      "ci_2.5": 36.54151601647543,
+      "ci_97.5": 38.470337117195754,
+      "bootstrap_replicates": 1000,
+      "cluster_key": "alignment_id"
+    },
+    {
+      "system": "nllb",
+      "metric": "ssa_comet",
+      "point_estimate": 0.44461354237794876,
+      "ci_2.5": 0.4374781116937598,
+      "ci_97.5": 0.45205273228337367,
+      "bootstrap_replicates": 1000,
+      "cluster_key": "alignment_id"
+    },
+    {
+      "system": "afrinllb",
+      "metric": "bleu",
+      "point_estimate": 14.213439308834998,
+      "ci_2.5": 13.091427802938389,
+      "ci_97.5": 15.365673732047481,
+      "bootstrap_replicates": 1000,
+      "cluster_key": "alignment_id"
+    },
+    {
+      "system": "afrinllb",
+      "metric": "chrf_pp",
+      "point_estimate": 38.26893419194543,
+      "ci_2.5": 37.29463362340217,
+      "ci_97.5": 39.25604321321899,
+      "bootstrap_replicates": 1000,
+      "cluster_key": "alignment_id"
+    },
+    {
+      "system": "afrinllb",
+      "metric": "ssa_comet",
+      "point_estimate": 0.4493538590669632,
+      "ci_2.5": 0.44251435073701045,
+      "ci_97.5": 0.456262709601596,
+      "bootstrap_replicates": 1000,
+      "cluster_key": "alignment_id"
+    },
+    {
+      "system": "clean",
+      "metric": "bleu",
+      "point_estimate": 14.207013620308325,
+      "ci_2.5": 13.066909843122465,
+      "ci_97.5": 15.282031323441267,
+      "bootstrap_replicates": 1000,
+      "cluster_key": "alignment_id"
+    },
+    {
+      "system": "clean",
+      "metric": "chrf_pp",
+      "point_estimate": 38.30824391888298,
+      "ci_2.5": 37.340769760280985,
+      "ci_97.5": 39.24256414649332,
+      "bootstrap_replicates": 1000,
+      "cluster_key": "alignment_id"
+    },
+    {
+      "system": "clean",
+      "metric": "ssa_comet",
+      "point_estimate": 0.446873827368021,
+      "ci_2.5": 0.43986552200913426,
+      "ci_97.5": 0.4536954040425519,
+      "bootstrap_replicates": 1000,
+      "cluster_key": "alignment_id"
+    },
+    {
+      "system": "noisy",
+      "metric": "bleu",
+      "point_estimate": 15.25599299207294,
+      "ci_2.5": 14.031005872396381,
+      "ci_97.5": 16.424873387074964,
+      "bootstrap_replicates": 1000,
+      "cluster_key": "alignment_id"
+    },
+    {
+      "system": "noisy",
+      "metric": "chrf_pp",
+      "point_estimate": 39.123384580857994,
+      "ci_2.5": 38.12209689655683,
+      "ci_97.5": 40.083883262370584,
+      "bootstrap_replicates": 1000,
+      "cluster_key": "alignment_id"
+    },
+    {
+      "system": "noisy",
+      "metric": "ssa_comet",
+      "point_estimate": 0.4662904825707277,
+      "ci_2.5": 0.45879049539317684,
+      "ci_97.5": 0.4738154514349997,
+      "bootstrap_replicates": 1000,
+      "cluster_key": "alignment_id"
+    },
+    {
+      "system": "mixed",
+      "metric": "bleu",
+      "point_estimate": 15.362530633712403,
+      "ci_2.5": 14.165743830026669,
+      "ci_97.5": 16.625289628769043,
+      "bootstrap_replicates": 1000,
+      "cluster_key": "alignment_id"
+    },
+    {
+      "system": "mixed",
+      "metric": "chrf_pp",
+      "point_estimate": 39.363139422700186,
+      "ci_2.5": 38.414083251950274,
+      "ci_97.5": 40.40578318887503,
+      "bootstrap_replicates": 1000,
+      "cluster_key": "alignment_id"
+    },
+    {
+      "system": "mixed",
+      "metric": "ssa_comet",
+      "point_estimate": 0.4630189930796623,
+      "ci_2.5": 0.4561702687633534,
+      "ci_97.5": 0.47012382454847296,
+      "bootstrap_replicates": 1000,
+      "cluster_key": "alignment_id"
+    }
+  ]
+}

@@ -1,0 +1,41 @@
+{
+  "schema_version": 1,
+  "experiment": "GPU error-aware MT benchmark",
+  "base_git_commit": "8752d0d220b2ece8a81e572fd8134fb4e1a3b8df",
+  "dirty_worktree": true,
+  "dirty_patch_sha256": "5d3bede898da681fd33f1f6483dd17c4e9109a29600f589a361dbb8565171931",
+  "dirty_patch_hash_algorithm": "sha256 of LF-normalized full-index binary Git diff for six tracked recovery files plus the LF-normalized executed supervisor snapshot",
+  "dirty_patch_files": [
+    "analysis/analyze_predictions.py",
+    "experiments/generate_asr_noise.py",
+    "experiments/gpu_preflight.py",
+    "experiments/make_research_splits.py",
+    "experiments/prepare_naijas2st_pairs.py",
+    "requirements-comet.txt",
+    "run_full_experiment.ps1"
+  ],
+  "recovery_fix_summary": [
+    "Transformers-4 tokenizer metadata compatibility",
+    "repeatable explicit GPU preflight paths",
+    "connected-component leakage-safe split",
+    "metadata-only dataset projection",
+    "empty-hypothesis preservation during CSV analysis",
+    "COMET Setuptools compatibility pin",
+    "portable staged experiment supervision"
+  ],
+  "seed": 42,
+  "bootstrap_replicates": 1000,
+  "bootstrap_cluster_key": "alignment_id",
+  "authoritative_raw_artifact_hashes": {
+    "whisper_prediction_suite": "61ebe4bc29a5a63689aec28ff93452ec505ee81600866822040a1fbe63efe1a0",
+    "gold_hausa_oracle_suite": "1a014576359a5fdb828edefbc589ce811309118fddcd8886e310339d016e8390",
+    "system_metrics": "fb2cc584b2edd806e158c0daeeb828d011cf8971036f07d7ad4b35c9483b07eb",
+    "paired_differences": "c345940af76571cc6669a3d7d90e268c8b3caccdd959300673732c6879209f2e",
+    "train_asr_manifest": "de7fc7bebfbf8d48e6dcae560e799a804b631b1e0378a3ece382f13768798a0e",
+    "research_train_manifest": "0d360ae91d81a48b1edbb5b37cabb16b451528462adc2042fc4e35607d90dbfb",
+    "research_validation_manifest": "def8ee94b95ced618cf010491fcb2eda20dc7c5e562a714b3c84cf1045cfcab0",
+    "dev_asr_manifest": "61bfccc0a597f73264c829f04875201faccb75887d74621d14569638a0dc2ebc"
+  },
+  "completed_run_revision_status": "resolved and captured; not enforced by the original load commands",
+  "official_dev_status": "observed by the completed benchmark"
+}

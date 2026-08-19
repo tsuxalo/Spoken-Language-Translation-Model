@@ -1,0 +1,23 @@
+{
+  "schema_version": 1,
+  "operating_system_family": "Windows",
+  "python": "3.11.9",
+  "training_environment": {
+    "torch": "2.13.0+cu130",
+    "torch_cuda_build": "13.0",
+    "transformers": "4.57.6",
+    "datasets": "5.0.1",
+    "peft": "0.20.0",
+    "sacrebleu": "2.6.0",
+    "cuda_available": true
+  },
+  "analysis_environment": {
+    "unbabel_comet": "2.2.7",
+    "setuptools_compatibility": "<81"
+  },
+  "gpu": {
+    "model": "NVIDIA GeForce RTX 5050 Laptop GPU",
+    "driver": "591.49",
+    "reported_cuda": "13.1"
+  }
+}

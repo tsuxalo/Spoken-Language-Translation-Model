@@ -28,17 +28,99 @@ import librosa
 import soundfile as sf
 import torch
 from datasets import Audio, load_dataset
+from huggingface_hub import hf_hub_download
 from transformers import (
     WhisperForConditionalGeneration,
     WhisperProcessor,
 )
 
-from prepare_naijas2st_pairs import alignment_key
+try:
+    from .prepare_naijas2st_pairs import alignment_key
+    from .revisions import (
+        NAIJAS2ST_ID,
+        NAIJAS2ST_REVISION,
+        WHISPER_HAUSA_ID,
+        WHISPER_HAUSA_REVISION,
+    )
+except ImportError:  # pragma: no cover - direct script execution
+    from prepare_naijas2st_pairs import alignment_key
+    from revisions import (
+        NAIJAS2ST_ID,
+        NAIJAS2ST_REVISION,
+        WHISPER_HAUSA_ID,
+        WHISPER_HAUSA_REVISION,
+    )
 
-
-DATASET_ID = "McGill-NLP/NaijaS2ST"
-ASR_MODEL_ID = "nahomazmach/whisper-small-ha"
+DATASET_ID = NAIJAS2ST_ID
+ASR_MODEL_ID = WHISPER_HAUSA_ID
 SAMPLING_RATE = 16_000
+
+
+def processor_compat_kwargs(model_id: str, revision: str) -> dict:
+    """Adapt unambiguous Transformers-5 token metadata for Transformers 4."""
+
+    local_config = Path(model_id) / "tokenizer_config.json"
+    if local_config.is_file():
+        config_path = local_config
+    else:
+        config_path = Path(
+            hf_hub_download(
+                repo_id=model_id,
+                filename="tokenizer_config.json",
+                revision=revision,
+            )
+        )
+
+    config = json.loads(config_path.read_text(encoding="utf-8"))
+    extra_tokens = config.get("extra_special_tokens")
+    if not isinstance(extra_tokens, list):
+        return {}
+    if not extra_tokens or any(not isinstance(token, str) for token in extra_tokens):
+        raise ValueError("extra_special_tokens must be a nonempty list of strings")
+    if len(set(extra_tokens)) != len(extra_tokens):
+        raise ValueError("extra_special_tokens contains ambiguous duplicate values")
+    return {
+        "extra_special_tokens": {
+            f"extra_special_token_{index}": token
+            for index, token in enumerate(extra_tokens)
+        }
+    }
+
+
+def load_asr_runtime(model_id: str, revision: str, device: str):
+    """Load the processor/model pair with one immutable revision."""
+
+    processor = WhisperProcessor.from_pretrained(
+        model_id,
+        revision=revision,
+        **processor_compat_kwargs(model_id, revision),
+    )
+    model = WhisperForConditionalGeneration.from_pretrained(
+        model_id,
+        revision=revision,
+    ).to(device)
+    model.eval()
+    return processor, model
+
+
+def load_resume_rows(path: Path) -> list[dict]:
+    """Load and validate an existing append-only ASR manifest."""
+
+    if not path.is_file():
+        return []
+    rows = []
+    with path.open("r", encoding="utf-8") as handle:
+        for line_number, line in enumerate(handle, start=1):
+            if not line.strip():
+                continue
+            try:
+                rows.append(json.loads(line))
+            except json.JSONDecodeError as exc:
+                raise ValueError(f"Invalid resume JSON on line {line_number}") from exc
+    ids = [str(row.get("utterance_id", "")) for row in rows]
+    if any(not value for value in ids) or len(set(ids)) != len(ids):
+        raise ValueError("Resume manifest has missing or duplicate utterance_id values")
+    return rows
 
 
 def load_pairs(path: str) -> dict[str, dict]:
@@ -133,8 +215,8 @@ def main() -> None:
         type=int,
         default=2000,
         help=(
-        "Streaming shuffle buffer. Larger values provide better "
-        "mixing across speakers while keeping memory bounded."
+            "Streaming shuffle buffer. Larger values provide better "
+            "mixing across speakers while keeping memory bounded."
         ),
     )
 
@@ -165,6 +247,19 @@ def main() -> None:
         "--asr-model",
         default=ASR_MODEL_ID,
     )
+    parser.add_argument("--asr-model-revision", default=WHISPER_HAUSA_REVISION)
+    parser.add_argument("--dataset-revision", default=NAIJAS2ST_REVISION)
+    parser.add_argument(
+        "--target-matched-count",
+        type=int,
+        default=0,
+        help="Stop after this many total matched rows, including resumed rows.",
+    )
+    parser.add_argument(
+        "--resume",
+        action="store_true",
+        help="Append only rows whose utterance_id is absent from an existing output.",
+    )
 
     args = parser.parse_args()
 
@@ -176,21 +271,18 @@ def main() -> None:
     print(f"ASR model: {args.asr_model}")
     print(f"Reference sentences: {len(references):,}")
 
-    processor = WhisperProcessor.from_pretrained(
-        args.asr_model
+    processor, model = load_asr_runtime(
+        args.asr_model,
+        args.asr_model_revision,
+        device,
     )
-
-    model = WhisperForConditionalGeneration.from_pretrained(
-        args.asr_model
-    ).to(device)
-
-    model.eval()
 
     # Stream audio instead of downloading the entire NaijaS2ST corpus.
     dataset = load_dataset(
         DATASET_ID,
         split=args.split,
         streaming=True,
+        revision=args.dataset_revision,
     )
 
     dataset = dataset.cast_column(
@@ -199,27 +291,34 @@ def main() -> None:
     )
 
     # NaijaS2ST rows may be grouped by speaker in storage order.
-# Shuffle the streaming dataset so a small evaluation sample does not
-# accidentally evaluate only the first speaker in the dataset.
+    # Shuffle the streaming dataset so a small evaluation sample does not
+    # accidentally evaluate only the first speaker in the dataset.
     if args.shuffle_buffer > 0:
         dataset = dataset.shuffle(
-        seed=args.seed,
-        buffer_size=args.shuffle_buffer,
-    )
+            seed=args.seed,
+            buffer_size=args.shuffle_buffer,
+        )
 
     output_path = Path(args.output)
     output_path.parent.mkdir(parents=True, exist_ok=True)
 
+    existing_rows = load_resume_rows(output_path) if args.resume else []
+    completed_ids = {str(row["utterance_id"]) for row in existing_rows}
+    target_count = args.target_matched_count or args.max_samples
+    if target_count < 0:
+        raise ValueError("Matched-count limits cannot be negative.")
+
     # Individual utterance WERs are useful for error analysis.
-    wer_scores = []
+    wer_scores = [float(row["wer"]) for row in existing_rows]
 
     # These are also kept so we can calculate standard corpus-level WER.
-    gold_transcripts = []
-    asr_transcripts = []
+    gold_transcripts = [str(row["hausa_gold"]) for row in existing_rows]
+    asr_transcripts = [str(row["hausa_asr"]) for row in existing_rows]
 
-    processed = 0
+    processed = len(existing_rows)
 
-    with output_path.open("w", encoding="utf-8") as file:
+    mode = "a" if args.resume and output_path.exists() else "w"
+    with output_path.open(mode, encoding="utf-8") as file:
         for row in dataset:
             if str(row["language"]).lower() != "hausa":
                 continue
@@ -234,11 +333,15 @@ def main() -> None:
             if key not in references:
                 continue
 
+            utterance_id = f"{row['user_id']}::{row['text_id']}"
+            if utterance_id in completed_ids:
+                continue
+            if target_count > 0 and processed >= target_count:
+                break
+
             reference = references[key]
 
-            audio_array, sample_rate = decode_audio(
-                row["audio"]
-            )
+            audio_array, sample_rate = decode_audio(row["audio"])
 
             asr_text = transcribe_array(
                 audio_array=audio_array,
@@ -258,9 +361,7 @@ def main() -> None:
 
             result = {
                 "alignment_id": key,
-                "utterance_id": (
-                    f"{row['user_id']}::{row['text_id']}"
-                ),
+                "utterance_id": utterance_id,
                 "speaker_id": row["user_id"],
                 "split": args.split,
                 "hausa_gold": gold_hausa,
@@ -284,23 +385,19 @@ def main() -> None:
             gold_transcripts.append(gold_hausa)
             asr_transcripts.append(asr_text)
             processed += 1
+            completed_ids.add(utterance_id)
 
             print(
-                f"[{processed}/{args.max_samples}] "
+                f"[{processed}/{target_count or 'all'}] "
                 f"WER={sample_wer:.1f}% | "
                 f"{asr_text[:80]}"
             )
 
-            if (
-                args.max_samples > 0
-                and processed >= args.max_samples
-            ):
+            if target_count > 0 and processed >= target_count:
                 break
 
     if not processed:
-        raise RuntimeError(
-            "No matching Hausa audio examples were processed."
-        )
+        raise RuntimeError("No matching Hausa audio examples were processed.")
 
     print()
     print("ASR benchmark summary")
