@@ -12,10 +12,9 @@ import io
 import json
 import sys
 
+import hausa_s2tt.training as training_mod
 import soundfile as sf
 from datasets import Audio, load_dataset
-
-import hausa_s2tt.training as training_mod
 from hausa_s2tt.datasets import split_dataset_by_speaker
 
 PARQUET_REVISION = "refs/convert/parquet"

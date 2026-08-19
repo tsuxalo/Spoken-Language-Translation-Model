@@ -17,16 +17,33 @@ import soundfile as sf
 from datasets import Audio, load_dataset
 from transformers import WhisperProcessor
 
-MODEL_ID = "openai/whisper-small"
-DATASET_ID = "google/fleurs"
+from experiments.revisions import (
+    FLEURS_ID,
+    FLEURS_REVISION,
+    OPENAI_WHISPER_SMALL_ID,
+    OPENAI_WHISPER_SMALL_REVISION,
+)
+
+MODEL_ID = OPENAI_WHISPER_SMALL_ID
+DATASET_ID = FLEURS_ID
 LANGUAGE_CONFIG = "ha_ng"
 SAMPLING_RATE = 16_000
 OUTPUT_DIR = "./data"
 
 
 def load_raw_dataset():
-    train = load_dataset(DATASET_ID, LANGUAGE_CONFIG, split="train")
-    test = load_dataset(DATASET_ID, LANGUAGE_CONFIG, split="test")
+    train = load_dataset(
+        DATASET_ID,
+        LANGUAGE_CONFIG,
+        split="train",
+        revision=FLEURS_REVISION,
+    )
+    test = load_dataset(
+        DATASET_ID,
+        LANGUAGE_CONFIG,
+        split="test",
+        revision=FLEURS_REVISION,
+    )
     train = train.cast_column("audio", Audio(sampling_rate=SAMPLING_RATE, decode=False))
     test = test.cast_column("audio", Audio(sampling_rate=SAMPLING_RATE, decode=False))
     return train, test
@@ -42,7 +59,12 @@ def prepare_example(example, processor):
 
 
 def main():
-    processor = WhisperProcessor.from_pretrained(MODEL_ID, language="Hausa", task="transcribe")
+    processor = WhisperProcessor.from_pretrained(
+        MODEL_ID,
+        revision=OPENAI_WHISPER_SMALL_REVISION,
+        language="Hausa",
+        task="transcribe",
+    )
 
     train, test = load_raw_dataset()
     train = train.map(prepare_example, fn_kwargs={"processor": processor}, remove_columns=train.column_names)

@@ -13,7 +13,12 @@ from transformers import (
     WhisperProcessor,
 )
 
-MODEL_ID = "openai/whisper-small"
+from experiments.revisions import (
+    OPENAI_WHISPER_SMALL_ID,
+    OPENAI_WHISPER_SMALL_REVISION,
+)
+
+MODEL_ID = OPENAI_WHISPER_SMALL_ID
 DATA_DIR = "./data"
 OUTPUT_DIR = "./whisper-small-ha"
 
@@ -55,8 +60,16 @@ def make_compute_metrics(processor):
 
 
 def main():
-    processor = WhisperProcessor.from_pretrained(MODEL_ID, language="Hausa", task="transcribe")
-    model = WhisperForConditionalGeneration.from_pretrained(MODEL_ID)
+    processor = WhisperProcessor.from_pretrained(
+        MODEL_ID,
+        revision=OPENAI_WHISPER_SMALL_REVISION,
+        language="Hausa",
+        task="transcribe",
+    )
+    model = WhisperForConditionalGeneration.from_pretrained(
+        MODEL_ID,
+        revision=OPENAI_WHISPER_SMALL_REVISION,
+    )
     model.generation_config.language = "hausa"
     model.generation_config.task = "transcribe"
     model.generation_config.forced_decoder_ids = None
