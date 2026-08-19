@@ -7,9 +7,9 @@ intelligence but may not have a background in speech or translation research.
 
 Some terms have a special meaning in this project. In particular, **noisy**
 usually means errors in ASR-generated Hausa text—not background sound in the
-audio—and the final controlled experiment uses NaijaS2ST `train` for training
-and internal validation while keeping NaijaS2ST `dev` untouched for final
-evaluation.
+audio—and the final controlled experiment used NaijaS2ST `train` for training
+and internal validation, then observed NaijaS2ST `dev` for its completed final
+evaluation. That `dev` split is no longer an untouched future tuning set.
 
 ## 1. Speech and translation
 
@@ -359,9 +359,10 @@ training source, and the input to the gold-Hausa MT oracle.
 Examples deliberately withheld from model training so they can estimate
 performance on unseen data.
 
-**In this project:** an internal validation split is held out from NaijaS2ST
-`train`, and official NaijaS2ST `dev` is kept untouched until final evaluation
-under the documented protocol.
+**In this project:** an internal validation split was held out from NaijaS2ST
+`train`, and official NaijaS2ST `dev` stayed untouched until the completed final
+GPU evaluation. It has now been observed and cannot serve as a new untouched
+tuning set.
 
 ### 39. JSONL manifest
 
@@ -414,8 +415,8 @@ updates parameters; validation data supports development or model selection;
 test or held-out data supports final evaluation.
 
 **In this project:** FLEURS uses `train` and `test`; the final NaijaS2ST study
-creates internal training/validation subsets from `train` and reserves
-official `dev` for the final benchmark.
+created internal training/validation subsets from `train` and used official
+`dev` only for the completed final benchmark.
 
 ## 4. Training and fine-tuning
 
@@ -1053,8 +1054,9 @@ Choosing a model, checkpoint, or configuration using development or validation
 performance before final evaluation.
 
 **In this project:** all controlled LoRA conditions are selected against the
-same noisy internal validation set, while official NaijaS2ST `dev` remains
-untouched until those decisions are complete.
+same noisy internal validation set, while official NaijaS2ST `dev` remained
+untouched until those decisions were complete. The completed final evaluation
+has since observed it.
 
 ### 115. Paper-aligned baseline versus reproduction
 

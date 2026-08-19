@@ -5,24 +5,31 @@ Collaborative Project with Nahom Azmach, Salim Gloyd, and Karun Mokha
 
 ## What this project does
 
-The goal is to take a recording of someone speaking Hausa and get back written **English** text of what they said. There are two fundamentally different ways to build this, and this project builds and compares **both**:
+The goal is to take a recording of someone speaking Hausa and get back written **English** text of what they said. The repository now preserves three deployable systems:
 
 - **A cascade** — two separate models chained together: one converts Hausa speech to Hausa text (Automatic Speech Recognition), the other translates that Hausa text to English. This is the project's main, fully-built pipeline — see **Part 1**.
-- **A direct model** — one model that goes straight from Hausa audio to English text, with no Hausa-text step in between. Explored as a smaller-scale pilot, specifically to test whether skipping the written-Hausa step avoids a weakness we found in the cascade — see **Part 2**.
+- **The historical Whisper direct pilot** — Whisper-small plus a LoRA adapter that generates English without a Hausa-text intermediate step — see **Part 2**.
+- **C1 direct S2TT** — a full-data XLS-R/Wav2Vec2 speech encoder connected to an mBART-style English decoder. It is a self-contained `SpeechEncoderDecoderModel`, not Whisper or PEFT — see [`docs/C1_INTEGRATION.md`](docs/C1_INTEGRATION.md).
 
-Both approaches start from the same idea: rather than building an ASR or translation model from nothing (which needs enormous amounts of data and compute), we take models already pretrained on speech and language in general — **Whisper** for speech, **NLLB** for translation — and adapt them specifically to Hausa. This is called **fine-tuning**.
+All three reuse pretrained speech or language representations rather than training from scratch. Their inference graphs remain distinct, which is why their loaders and evidence are kept separate.
 
-We're using the smallest version of Whisper (`whisper-small`) throughout, so training can realistically happen on a single consumer GPU rather than needing a data center.
+The Whisper-based cascade and historical pilot use `whisper-small`; C1 instead
+uses an XLS-R/Wav2Vec2 encoder and mBART decoder. The repository is organized
+for single-consumer-GPU inference by loading and unloading systems sequentially.
 
-Below: general setup, then how each approach was built, then a head-to-head comparison of the two (**Part 3**).
+Below: general setup, the deployable approaches, and evidence-scoped comparison
+panels that preserve the boundaries between development and official-dev results.
 
 ## Where things stand right now
 
 - Environment, GPU/CUDA support, and all dependencies: set up and confirmed working.
 - **The cascade** (Hausa ASR fine-tune + NLLB-200 translation): fully built, trained, evaluated, and published. WER 44.7%, cascade translation BLEU ~8–10 on real ASR output. See **Part 1**.
-- **The direct approach**: a first trained pilot is done and published. BLEU 0.24 on this small-scale pilot. See **Part 2**.
-- **Head-to-head comparison and finding:** see **Part 3**.
-- Notebook: covers both approaches and is Colab-ready, no local setup required — Sections 1–5 are the cascade (architecture, data, training telemetry, inference + translation demo), Sections 6–7 are the direct pilot and the results comparison.
+- **Historical direct pilot**: published Hub inference is preserved. BLEU 0.24 on its own 128-example train-derived pilot validation set. See **Part 2**.
+- **C1 direct S2TT**: integrated at immutable revision `cd84a6c2e447b098d772d6ad59b247f16c29075d`, with a CLI, tested audio contract, Colab demo, and artifact-backed documentation.
+- **Shared development evaluation:** all three systems completed the same 1,037-example / 543-cluster C1 project-validation membership with 3,111 successful nonempty predictions. The checked result is development evidence, not an independent or leakage-free test.
+- **Evidence status:** historical scores from different datasets remain separate from the new common-membership result. The cascade has the strongest automatic scores on the shared development membership; C1 improves chrF++ over the historical direct pilot but not BLEU conclusively.
+- **GPU error-aware MT experiment:** completed on the 1,500-example / 500-cluster official NaijaS2ST `dev` set. Mixed leads the BLEU/chrF++ point estimates and noisy leads SSA-COMET; no noisy-versus-mixed statistical-superiority claim is supported. See [`docs/GPU_EXPERIMENT_RESULTS.md`](docs/GPU_EXPERIMENT_RESULTS.md).
+- Notebook: Sections 6A/6B preserve the historical pilot and add C1, then run one pinned FLEURS clip through all three deployable systems sequentially.
 
 ## Phase 1 — Getting the machine ready
 
@@ -37,7 +44,7 @@ Alongside the plain Python scripts, we built `capstone_demo.ipynb`, a Jupyter no
 - **The scripts (`data_prep.py`, `train.py`, `inference.py`) are the cascade's "real" pipeline** — meant to be run as-is, in order, to actually produce a trained model.
 - **The notebook is for exploring and explaining** what's happening at each stage, and it's built to run on Google Colab, not just locally. Not everyone on the team has a GPU on their own machine, and Colab provides free (if limited) GPU access in a browser. The very first cell in the notebook is a Colab compatibility check: if it detects it's running on Colab, it installs all the needed libraries automatically, since Colab doesn't come with them preinstalled the way our local environment does.
 
-The notebook has seven sections: Sections 1–5 cover the cascade (an architecture overview, audio exploration, data pipeline verification, training telemetry, and interactive inference), and Sections 6–7 cover the direct pilot (a runnable demo of the trained direct model, and a head-to-head results comparison against the cascade).
+The notebook covers architecture, audio exploration, artifact-backed training telemetry, the cascade, Section 6A's historical direct pilot, Section 6B's C1 model, a shared qualitative clip, and evidence-scoped results/error-propagation views.
 
 ## Part 1: The Cascade Approach
 
@@ -128,29 +135,79 @@ Fluent-sounding English — grammatically fine — but essentially unrelated to 
 
 The pilot model is published on the Hugging Face Hub at [nahomazmach/whisper-small-ha-en-direct-pilot](https://huggingface.co/nahomazmach/whisper-small-ha-en-direct-pilot) — see the notebook's Section 6 for a runnable demo using this exact clip.
 
-## Part 3: Cascade vs. Direct — Head to Head
+### C1 direct S2TT
 
-Both approaches, scored on the same kind of task — translating Hausa to English — using BLEU and chrF++ (see Part 2 for what these mean):
+Run C1 locally with:
 
-| System | BLEU | chrF++ |
-|---|---|---|
-| Cascade, gold Hausa text (translation quality alone, no ASR errors) | ~22–25 | ~46–50 |
-| Cascade, real ASR output (the actual end-to-end pipeline) | **~8–10** | **~33–35** |
-| Direct pilot | **0.24** | **14.39** |
+```powershell
+python direct_c1.py path\to\hausa.wav
+```
 
-![Cascade vs direct pilot BLEU and chrF++ bar chart](images/cascade_vs_direct_comparison.png)
+The CLI verifies the frozen processor/model/generation contract, measures duration from decoded audio, rejects scored clips over 30 seconds, runs float32 inference, and reports timing/real-time factor/peak CUDA memory. See [`docs/C1_INTEGRATION.md`](docs/C1_INTEGRATION.md) for the immutable model contract, dependencies, provenance audit, and limitations.
 
-**What this picture is showing, in plain terms:** three bars, and for each one, taller = better. The first two bars are both *the same cascade model* — the only thing that changed between them is whether NLLB got to translate the *correct* Hausa text (left bar) or the Hausa text our imperfect ASR actually produced, mistakes and all (middle bar). The height drops by more than half just from that one change — that's the entire "ASR error propagation" story in one picture: the translation model itself didn't get worse, its *input* did. The third bar is a completely different, much smaller experiment (the direct pilot) — much shorter, for reasons explained above.
+## Part 3: Evidence-scoped comparison
 
-**This is a real, legitimate finding:** at small scale, the direct approach underperforms the cascade substantially, suggesting the cascade's advantage from independent massive pretraining (Whisper's 680k hours, NLLB's large parallel-text corpus) outweighs its ASR-error-propagation weakness — at least until a direct model gets enough paired data to compete. This isn't a verdict that direct approaches are worse in general — it's evidence that, in a genuinely low-resource setting like this one, the data-efficiency advantage of a cascade built from two separately pretrained giants currently matters more than avoiding error propagation. A cascade gets to reuse two models that already understand speech and language broadly; a direct model has to learn the entire audio-to-English mapping from whatever paired data it's given, and 256 examples just isn't enough of that yet.
+The repository now has two deliberately separate result panels. They answer
+different questions and must not be merged into one leaderboard.
 
-The gold-vs-real-ASR gap in the cascade's own row is also worth sitting with on its own: it's the reason Part 2 got explored in the first place, and we independently reproduced it on a separate random sample of NaijaS2ST (BLEU ~22→10, chrF++ ~48→34) — the drop is real and repeatable, not a one-off pilot artifact.
+### Panel A — C1 direct S2TT development evidence
 
-**A closer, per-utterance look:** the bar chart above compares two big averages. This next chart zooms in — instead of one average number for "real ASR output," it plots all 25 individual test clips as separate dots, to check whether the pattern holds up clip-by-clip and not just on average.
+```text
+Hausa audio → direct SpeechEncoderDecoderModel → English
+```
 
-![WER vs translation quality](images/wer_vs_translation_quality.png)
+The frozen common membership contains 1,037 examples in 543 alignment
+clusters, drawn from NaijaS2ST official `train` / project validation. It is
+selection-influenced development evidence, not an independent test. On that
+membership, the cascade scored BLEU 12.56 / chrF++ 35.61, the historical direct
+pilot 0.47 / 14.70, and the exported C1 package 0.38 / 16.57. The exported C1
+package does not bitwise reproduce the historical local-adapter result; both
+inference paths remain explicitly separate.
 
-**What this picture is showing, in plain terms:** each dot is one audio clip. A dot's position left to right is how many mistakes our ASR model made transcribing that specific clip (its **Word Error Rate** — 0% on the far left means a perfect transcription, 60% on the right means more than half the words were wrong). A dot's position up or down is how good the *English translation* of that same clip turned out (measured by BLEU on the left chart, chrF++ on the right — for both, higher = closer to the correct English answer). If ASR mistakes really do cause bad translations, we'd expect dots to drift downward as we move right (more transcription errors, worse translation) and that's roughly what the orange trend line shows: it slopes down in both charts.
+### Panel B — GPU error-aware MT official-dev evidence
 
-It's not a perfectly clean line — a few clips with lots of ASR errors still translated decently, and vice versa, which is completely normal with real data and only 25 examples. The "**r**" number in the legend (called a *correlation coefficient*) is a standard way statisticians summarize how strongly two things move together in a single number: `r = 0` would mean no relationship at all, `r = -1` would mean a perfectly clean "more errors always means worse translation, every single time" relationship. Our r values (around -0.35 to -0.38) sit in between... a real & visible relationship, just not a solid rule for every individual clip. That's exactly what we'd expect: ASR errors are *a* major cause of bad translations, not the *only* one. See [`analysis/WER_VS_TRANSLATION_QUALITY.md`](analysis/WER_VS_TRANSLATION_QUALITY.md) and the notebook's Section 8 for more detail.
+```text
+Hausa audio → fixed Whisper Hausa ASR → Hausa text → MT system → English
+```
+
+The MT systems were evaluated on the same fixed-ASR Hausa text for 1,500
+official-dev utterances in 500 clusters. The canonical point estimates are:
+
+| MT system | BLEU | chrF++ | SSA-COMET |
+|---|---:|---:|---:|
+| NLLB | 13.33 | 37.51 | 0.4446 |
+| AfriNLLB | 14.21 | 38.27 | 0.4494 |
+| Clean LoRA | 14.21 | 38.31 | 0.4469 |
+| Noisy LoRA | 15.26 | 39.12 | **0.4663** |
+| Mixed LoRA | **15.36** | **39.36** | 0.4630 |
+
+Mixed leads the BLEU/chrF++ point estimates and noisy leads the SSA-COMET point
+estimate. Both noisy and mixed improve over base NLLB in the predeclared paired
+cluster bootstrap, but no direct noisy-versus-mixed paired comparison was
+saved. This was one training seed, and the intervals describe evaluation-cluster
+uncertainty—not training-seed variability. Official NaijaS2ST `dev` has now
+been observed and is not an untouched holdout for future tuning.
+
+Full results, recovery provenance, immutable revisions, raw-artifact hashes,
+and privacy boundaries are in
+[`docs/GPU_EXPERIMENT_RESULTS.md`](docs/GPU_EXPERIMENT_RESULTS.md). The public
+machine-readable package is under [`artifacts/gpu-handoff/`](artifacts/gpu-handoff/).
+
+Regenerate and validate it from an authorized private evidence package with:
+
+```powershell
+python scripts/build_gpu_handoff_artifacts.py --private-root <private-artifact-root>
+python scripts/validate_gpu_handoff_artifacts.py
+python scripts/plot_gpu_handoff.py
+```
+
+### C1 comparison detail
+
+The historical cascade, historical direct pilot, and C1 development metrics were produced on different memberships. They are retained in [`artifacts/comparison-v2/historical_metrics.json`](artifacts/comparison-v2/historical_metrics.json) and displayed in separate notebook panels; they must not be ranked as a common benchmark.
+
+The notebook's one shared FLEURS example is **qualitative only** because FLEURS supplies a Hausa transcription but no gold English translation. The earlier 10-example canary remains in [`artifacts/comparison-v2/common_manifest_metrics.json`](artifacts/comparison-v2/common_manifest_metrics.json). The complete shared evaluation is in [`artifacts/comparison-v2/full_development_metrics.json`](artifacts/comparison-v2/full_development_metrics.json), with membership and reproducibility details in [`artifacts/comparison-v2/full_development_provenance.json`](artifacts/comparison-v2/full_development_provenance.json).
+
+On the 1,037-example common membership, the cascade scored BLEU 12.56 / chrF++ 35.61, the historical direct pilot 0.47 / 14.70, and the exported C1 package 0.38 / 16.57. C1's chrF++ delta over the direct pilot was +1.87 (95% paired cluster-bootstrap CI +1.36 to +2.32); the BLEU delta included zero. C1's validation membership influenced selection and direct-pilot training overlap remains unverified, so these values must not be presented as independent or leakage-free test evidence.
+
+The existing 25-example ASR-error analysis is preserved with values moved to [`artifacts/comparison-v2/error_propagation.json`](artifacts/comparison-v2/error_propagation.json). Its moderate negative correlations are descriptive supporting evidence, not a causal or definitive benchmark result.
 
