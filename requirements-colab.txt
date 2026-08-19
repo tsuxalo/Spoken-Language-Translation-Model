@@ -1,0 +1,16 @@
+# Colab overlay for the C1/comparison notebook.
+#
+# Colab supplies PyTorch and its compiled NumPy/SciPy/Pandas/Matplotlib stack.
+# Replacing those packages inside a live kernel can mix old binary extensions
+# with newly installed Python files. Keep the platform stack and install only
+# the project packages that the notebook needs. Local and clean-environment
+# reproduction continues to use requirements-c1.txt.
+
+transformers==5.14.1
+peft==0.20.0
+accelerate==1.14.0
+datasets==4.8.5
+soundfile==0.14.0
+librosa==0.11.0
+sentencepiece==0.2.2
+sacrebleu==2.6.0
