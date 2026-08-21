@@ -1,236 +1,156 @@
-# Error-Aware Hausa→English Speech Translation
+# Spoken-Language-Translation-Model
+Translating Hausa Speech to English — and Asking Whether Machine Learning Can Bypass the Need for a Written Language
 
-A controlled study of **ASR error propagation and error-aware machine translation** in a low-resource Hausa→English speech-translation cascade.
+Collaborative Project with Nahom Azmach, Salim Gloyd, and Karun Mokha
 
-## Quickstart
+## What this project does
 
-The repository is tested with Python 3.12. All public model IDs and immutable
-revisions are already recorded in `experiments/revisions.py`; the commands below
-do not require a Hugging Face token for the public models.
+The goal is to take a recording of someone speaking Hausa and get back written **English** text of what they said. There are two fundamentally different ways to build this, and this project builds and compares **both**:
 
-### 1. Clone and choose an environment
+- **A cascade** — two separate models chained together: one converts Hausa speech to Hausa text (Automatic Speech Recognition), the other translates that Hausa text to English. This is the project's main, fully-built pipeline — see **Part 1**.
+- **A direct model** — one model that goes straight from Hausa audio to English text, with no Hausa-text step in between. Explored as a smaller-scale pilot, specifically to test whether skipping the written-Hausa step avoids a weakness we found in the cascade — see **Part 2**.
 
-```bash
-git clone https://github.com/tsuxalo/Spoken-Language-Translation-Model.git
-cd Spoken-Language-Translation-Model
-python -m venv .venv
+Both approaches start from the same idea: rather than building an ASR or translation model from nothing (which needs enormous amounts of data and compute), we take models already pretrained on speech and language in general — **Whisper** for speech, **NLLB** for translation — and adapt them specifically to Hausa. This is called **fine-tuning**.
+
+We're using the smallest version of Whisper (`whisper-small`) throughout, so training can realistically happen on a single consumer GPU rather than needing a data center.
+
+Below: general setup, then how each approach was built, then a head-to-head comparison of the two (**Part 3**).
+
+## Where things stand right now
+
+- Environment, GPU/CUDA support, and all dependencies: set up and confirmed working.
+- **The cascade** (Hausa ASR fine-tune + NLLB-200 translation): fully built, trained, evaluated, and published. WER 44.7%, cascade translation BLEU ~8–10 on real ASR output. See **Part 1**.
+- **The direct approach**: a first trained pilot is done and published. BLEU 0.24 on this small-scale pilot. See **Part 2**.
+- **Head-to-head comparison and finding:** see **Part 3**.
+- Notebook: covers both approaches and is Colab-ready, no local setup required — Sections 1–5 are the cascade (architecture, data, training telemetry, inference + translation demo), Sections 6–7 are the direct pilot and the results comparison.
+
+## Phase 1 — Getting the machine ready
+
+Before any training can happen, the machine needs Python, the ML libraries (PyTorch, Hugging Face's `transformers` and `datasets`, etc.), and `ffmpeg` (a tool used under the hood for handling audio).
+
+The one detail worth understanding here: PyTorch (the library that actually does the math for training neural networks) can run either on the CPU or on the GPU. GPUs are built to do many small calculations at once, which happens to be exactly what training a neural network needs, so training on a GPU is often 10-50x faster than on a CPU. Our machine has an NVIDIA RTX 5050 GPU, so we made sure PyTorch was installed with CUDA support (CUDA is NVIDIA's software layer that lets programs like PyTorch talk to the GPU). Without this step, all the later training would silently run on the CPU and take drastically longer.
+
+## Phase 2 — The notebook
+
+Alongside the plain Python scripts, we built `capstone_demo.ipynb`, a Jupyter notebook that walks through both approaches interactively, with charts, playable audio, and runnable models instead of just terminal output. There are two reasons for having both a notebook and standalone scripts:
+
+- **The scripts (`data_prep.py`, `train.py`, `inference.py`) are the cascade's "real" pipeline** — meant to be run as-is, in order, to actually produce a trained model.
+- **The notebook is for exploring and explaining** what's happening at each stage, and it's built to run on Google Colab, not just locally. Not everyone on the team has a GPU on their own machine, and Colab provides free (if limited) GPU access in a browser. The very first cell in the notebook is a Colab compatibility check: if it detects it's running on Colab, it installs all the needed libraries automatically, since Colab doesn't come with them preinstalled the way our local environment does.
+
+The notebook has seven sections: Sections 1–5 cover the cascade (an architecture overview, audio exploration, data pipeline verification, training telemetry, and interactive inference), and Sections 6–7 cover the direct pilot (a runnable demo of the trained direct model, and a head-to-head results comparison against the cascade).
+
+## Part 1: The Cascade Approach
+
+### Getting and preparing the data (`data_prep.py`)
+
+A model can't learn from raw audio and raw text directly — both need to be converted into a numeric form it can actually process.
+
+**The dataset:** we're using Hausa speech clips from Google's FLEURS dataset (specifically its `ha_ng` — Hausa, Nigeria — portion), each clip paired with its correct written transcription. The original project plan called for a different dataset (Mozilla's Common Voice), but Mozilla moved that dataset off the platform we were pulling it from in October 2025, so we switched to FLEURS, which contains a comparable set of Hausa recordings and is freely accessible.
+
+**Turning audio into numbers (mel-spectrograms):** raw audio is just a long list of amplitude values over time, which isn't a great format for a model to learn patterns from. Instead, we convert each clip into a **mel-spectrogram** — essentially a picture of the audio, showing which frequencies (pitches) are present at each moment in time, on a scale that roughly matches how human hearing perceives pitch. This is the same format Whisper was originally trained on, so it's the format it expects.
+
+**Turning text into numbers (tokenization):** similarly, the written Hausa transcription for each clip is broken into small chunks (tokens) and converted into a sequence of numbers, using the same vocabulary Whisper already knows. This is what the model is being asked to predict, one token at a time, from the audio.
+
+After this conversion, everything is saved to a `./data` folder (a training set and a separate held-out test set) so training doesn't have to redo this conversion work every time.
+
+### Training setup (`train.py`)
+
+This is where the actual learning happens: showing the model many examples of (audio in → correct text out) and adjusting its internal parameters so its predictions get closer to being right.
+
+A few choices worth explaining:
+
+- **Batch size and gradient accumulation:** ideally, a model looks at many examples at once per learning step, since that gives a more stable sense of "which direction to adjust in." But more examples at once also means more GPU memory. Our GPU has a limited 8GB of memory, so we process only 2 clips at a time, but accumulate the learning signal over 4 of those small batches before actually updating the model — approximating a batch of 8 without needing the memory for 8 at once.
+- **Mixed precision (fp16):** normally numbers inside the model are stored with high precision, using more memory and compute than usually necessary. We tell the training to use lower-precision numbers where it's safe to do so, which roughly halves memory use and speeds things up, with a negligible effect on the end result.
+- **Measuring progress (Word Error Rate):** after each pass through the data, the model is asked to transcribe some clips it wasn't trained on, and we compare its output to the correct answer using **Word Error Rate (WER)** — essentially, what percentage of words were inserted, deleted, or substituted incorrectly. Lower is better. A WER of 0% would mean perfect transcription.
+
+Before committing to a full run, we first verified this setup with a short trial (a couple of steps on a handful of examples) to confirm nothing was broken, then ran full training: 3 complete passes over all ~3,259 training clips on the local GPU, taking about 4.3 hours. Training loss dropped steadily the whole way — from 13.7 at the start down to 0.86 by the end — and WER on the held-out test set improved with each pass: 50.5% after epoch 1, 45.0% after epoch 2, and **44.7%** after epoch 3. That means the fine-tuned model gets a bit under half the words right on speech it never saw during training, a solid result for 3 epochs on a comparatively small, low-resource-language dataset.
+
+### Trying the model out, and translating to English (`inference.py`)
+
+Once a model is trained, `inference.py` is the piece that makes it actually useful: give it a path to a `.wav` audio file, and it returns the transcribed Hausa text. It loads the fine-tuned model, converts the given audio into the same mel-spectrogram format used during training (so the model sees data in the format it expects), and asks the model to generate a text prediction.
+
+We first validated the mechanics (loading, audio conversion, generation, decoding back to text) using the base, not-yet-fine-tuned Whisper model — its output was recognizably in the right neighborhood phonetically but not accurate, as expected for a model that hadn't seen Hausa yet. Now that training is complete, `inference.py` and the notebook load the actual fine-tuned model.
+
+The fine-tuned model is published on the **Hugging Face Hub** at [nahomazmach/whisper-small-ha](https://huggingface.co/nahomazmach/whisper-small-ha), rather than only existing as a ~1GB folder on one laptop. That means anyone — a groupmate, the Colab notebook, a grader — can load it directly with `WhisperForConditionalGeneration.from_pretrained("nahomazmach/whisper-small-ha")` and get real transcriptions immediately, without needing to run any of the training themselves.
+
+**Getting to English:** the project's original goal was Hausa audio → **English** text, not just Hausa text. Rather than training one giant model to do both jobs at once, `inference.py` **chains a second, separate pretrained model** onto the output of the first:
+
+```
+[ Hausa audio ] → (our fine-tuned Whisper) → [ Hausa text ] → (NLLB-200) → [ English text ]
 ```
 
-Activate the environment with `.venv\Scripts\activate` on Windows PowerShell or
-`source .venv/bin/activate` on Linux/macOS, then choose one dependency path:
+Meta's **NLLB-200** ([`facebook/nllb-200-distilled-600M`](https://huggingface.co/facebook/nllb-200-distilled-600M)) is a pretrained text-to-text translation model that explicitly supports Hausa→English, so this required no additional training — just loading a second model and adding one more `generate()` call. This "cascaded" ASR + MT setup is the standard architecture most production speech-translation systems actually use, rather than one end-to-end audio-to-foreign-text model. `inference.py` exposes `transcribe_and_translate()`, returning both the Hausa transcription and its English translation.
 
-| Goal | Installation |
-|---|---|
-| Run the baseline cascade on CPU | `python -m pip install -r requirements-cpu.txt` |
-| Run pinned C1/comparison code | Install matching PyTorch first, then `python -m pip install -r requirements-c1.txt` |
-| Run repository tests and checks | Install matching PyTorch first, then `python -m pip install -r requirements-dev.txt` |
-| Run CUDA research training | Use `requirements-gpu.txt`, or install a driver-compatible PyTorch build followed by `requirements-research.txt` |
-| Run SSA-COMET analysis | Use a separate environment with `requirements-comet.txt` |
+The notebook's Section 5 does a related but more visual version of this: it downloads both models, runs 5 examples from the held-out test set through the full cascade, and displays a table with the correct Hausa transcription, our model's Hausa prediction, the WER score, and the English translation for each one — a quick, human-readable way to see quality on real examples.
 
-For a reproducible CPU C1 or development environment:
+### Cascade Results
 
-```bash
-python -m pip install --upgrade pip
-python -m pip install torch==2.13.0 --index-url https://download.pytorch.org/whl/cpu
-python -m pip install -r requirements-c1.txt
+| Metric | Epoch 1 | Epoch 2 | Epoch 3 (final) |
+|---|---|---|---|
+| Eval WER | 50.5% | 45.0% | **44.7%** |
+| Eval loss | 0.750 | 0.702 | 0.712 |
+
+![Cascade training loss and WER over training steps](images/cascade_training_curve.png)
+
+**What this picture is showing, in plain terms:** the left chart is the model's **training loss** — a single number that measures "how wrong is the model right now," calculated after every batch of examples it sees. It starts high (the model knows nothing about Hausa yet) and drops fast, then levels off — that flattening-out is normal and expected; it means the model has learned most of what it's going to learn from this amount of data, and further big improvements would need either more data or more training time. The right chart is **WER**, checked three times (once per epoch, i.e. once per full pass through the training data) on audio the model never trained on — it's the real test of whether the model actually got better, not just memorized the training examples. Both charts agreeing (loss down, WER down) is a good sign: the model is really learning to transcribe Hausa, not just overfitting.
+
+Trained model: [nahomazmach/whisper-small-ha](https://huggingface.co/nahomazmach/whisper-small-ha) on the Hugging Face Hub.
+
+**A concrete before/after**, on the same held-out test clip used again in Part 2 below, for direct comparison:
+
+- **Ground truth:** *An kwatanta faretin gine-ginen da ke yin sararin samaniyar Hong Kong da ginshiƙi mai walƙiya wanda aka bayyana ta gaban ruwan Victoria Harbor.*
+- **Base Whisper (untrained on Hausa):** *Aung kwa tanta ferietun ginaginang deke yung sarulin samania Hong Kong dekin shiki mei wal kiya wan da akabayenata gabung ruwan Victoria Habo.*
+- **Fine-tuned model (Hausa text):** *An kwatanta, feryatin gina-ginan da ke yin tsarin samaniya, Hong Kong, da ginshiki mai walƙiya wanda aka bayyana ta gaban ruwan Victoria Harbour.*
+- **Cascade's English translation (fine-tuned Hausa → NLLB-200):** *"The crystal structure of the skyline, Hong Kong, and the sparkling column that is depicted by the Victoria Harbour waterfront are illustrated."* — a bit awkwardly phrased, but the meaning (Hong Kong's skyline, glittering buildings, Victoria Harbour) comes through clearly, even after passing through our imperfect Hausa ASR output first.
+
+The base model is barely phonetically related to the correct answer; the fine-tuned model gets nearly every word right. That gap is what the 3 epochs of training actually bought us.
+
+## Part 2: The Direct Approach (Pilot)
+
+The cascade above works and gets the meaning across, but its phrasing can be awkward, especially when it's translating our ASR model's own transcription errors rather than clean Hausa text — errors compound across the two chained models. That raises an obvious question: what if we skip the written-Hausa step entirely, and train a single model to go straight from Hausa audio to English text?
+
+```
+[ Hausa audio ]  →  (Whisper encoder/decoder, task="translate", LoRA-adapted)  →  [ English text ]
 ```
 
-Do not install `requirements-research.txt` and `requirements-c1.txt` into the
-same environment: the completed research pipeline uses Transformers `<5`, while
-the exported C1 package is verified with Transformers 5.14.1.
+**What we built:** We had already set up infrastructure for exactly this on a separate branch (`feature/direct-s2tt`) ... a LoRA fine-tune of `openai/whisper-small` in its `task=translate` mode (Whisper natively supports outputting English directly, since it was originally trained on translation pairs alongside transcription), trained on real Hausa-audio-to-English-text pairs from [McGill-NLP/NaijaS2ST](https://huggingface.co/datasets/McGill-NLP/NaijaS2ST) (a dataset with genuine English translations, unlike FLEURS which only has Hausa text). Rather than duplicating that work, we ran it: the branch's training code would have downloaded NaijaS2ST's entire ~69GB train split before using any of it, so we first used its own metadata-only audit tooling to find which 2 of its 115 data shards contained the most usable pairs, downloaded only those (a few GB instead of 69GB), and trained a real pilot. Full write-up, the exact scripts run, and reproduction steps are in [`direct_pilot/RESULTS.md`](direct_pilot/RESULTS.md).
 
-### 2. Run the cascade
+**Training:** 256 training examples, 50 steps (3.125 epochs), LoRA — meaning only a small add-on set of weights (1.77 million parameters, 0.7% of the model's 243 million total) gets trained, while the base model stays frozen. Training loss averaged 30.98; validation loss came out to 4.04.
 
-The cascade performs Hausa speech → Hausa Whisper ASR → NLLB English MT:
+**Measuring translation quality (BLEU and chrF++):** WER (used for the cascade above) doesn't apply here, since we're not checking whether individual transcribed words match a script — we're comparing two English sentences for meaning. Instead we use two standard machine-translation metrics: **BLEU** compares chunks of consecutive words between the model's output and the correct answer (higher = closer phrasing), and **chrF++** does something similar at the character level, which tends to be a bit more forgiving of minor wording differences. Both range from 0 (no overlap) to 100 (a perfect match) — real translations, even good ones, often score in the 30s–40s, since there's more than one correct way to phrase a sentence.
 
-```bash
-python inference.py path/to/hausa.wav
-```
+**The same test clip as Part 1, this time through the direct model:**
 
-The first run downloads the pinned public ASR and MT models. The command prints
-both the intermediate Hausa transcript and final English translation.
+- **Ground truth:** *An kwatanta faretin gine-ginen da ke yin sararin samaniyar Hong Kong da ginshiƙi mai walƙiya wanda aka bayyana ta gaban ruwan Victoria Harbor.*
+- **Direct pilot's English output:** *"The government has been working on the development of the Hong Kong-based economic system in the region, which is the only way to help the country win the war."*
 
-### 3. Run C1 direct speech translation
+Fluent-sounding English — grammatically fine — but essentially unrelated to the actual content. That's what a validation BLEU of 0.24 looks like in practice: the model has learned to produce plausible English sentences, but hasn't learned to actually translate Hausa yet.
 
-C1 performs Hausa speech → XLS-R/Wav2Vec2 encoder → mBART English decoder,
-without an external ASR or MT stage:
+The pilot model is published on the Hugging Face Hub at [nahomazmach/whisper-small-ha-en-direct-pilot](https://huggingface.co/nahomazmach/whisper-small-ha-en-direct-pilot) — see the notebook's Section 6 for a runnable demo using this exact clip.
 
-```bash
-python direct_c1.py path/to/hausa.wav --device cpu
-```
+## Part 3: Cascade vs. Direct — Head to Head
 
-Use `--device cuda` only after confirming that the installed PyTorch build sees
-the GPU. Scored C1 evaluation rejects audio longer than 30 seconds by design.
+Both approaches, scored on the same kind of task — translating Hausa to English — using BLEU and chrF++ (see Part 2 for what these mean):
 
-### 4. Run verification
+| System | BLEU | chrF++ |
+|---|---|---|
+| Cascade, gold Hausa text (translation quality alone, no ASR errors) | ~22–25 | ~46–50 |
+| Cascade, real ASR output (the actual end-to-end pipeline) | **~8–10** | **~33–35** |
+| Direct pilot | **0.24** | **14.39** |
 
-```bash
-python -m pip install -r requirements-dev.txt
-python -m pytest -q
-python -m ruff check .
-python -m compileall -q .
-python scripts/validate_gpu_handoff_artifacts.py --artifact-root artifacts/gpu-handoff
-```
+![Cascade vs direct pilot BLEU and chrF++ bar chart](images/cascade_vs_direct_comparison.png)
 
-GitHub Actions runs the same core checks, rebuilds the output-free notebook, and
-renders all poster figures from the committed privacy-safe aggregates.
+**What this picture is showing, in plain terms:** three bars, and for each one, taller = better. The first two bars are both *the same cascade model* — the only thing that changed between them is whether NLLB got to translate the *correct* Hausa text (left bar) or the Hausa text our imperfect ASR actually produced, mistakes and all (middle bar). The height drops by more than half just from that one change — that's the entire "ASR error propagation" story in one picture: the translation model itself didn't get worse, its *input* did. The third bar is a completely different, much smaller experiment (the direct pilot) — much shorter, for reasons explained above.
 
-### 5. Reproduce the poster figures
+**This is a real, legitimate finding:** at small scale, the direct approach underperforms the cascade substantially, suggesting the cascade's advantage from independent massive pretraining (Whisper's 680k hours, NLLB's large parallel-text corpus) outweighs its ASR-error-propagation weakness — at least until a direct model gets enough paired data to compete. This isn't a verdict that direct approaches are worse in general — it's evidence that, in a genuinely low-resource setting like this one, the data-efficiency advantage of a cascade built from two separately pretrained giants currently matters more than avoiding error propagation. A cascade gets to reuse two models that already understand speech and language broadly; a direct model has to learn the entire audio-to-English mapping from whatever paired data it's given, and 256 examples just isn't enough of that yet.
 
-```bash
-python poster/generate_figures.py
-```
+The gold-vs-real-ASR gap in the cascade's own row is also worth sitting with on its own: it's the reason Part 2 got explored in the first place, and we independently reproduced it on a separate random sample of NaijaS2ST (BLEU ~22→10, chrF++ ~48→34) — the drop is real and repeatable, not a one-off pilot artifact.
 
-The generator reads `artifacts/gpu-handoff/*.json` directly and writes four PNG
-and four SVG files under `poster/figures/`. No private predictions or local
-`poster/data` directory are required.
+**A closer, per-utterance look:** the bar chart above compares two big averages. This next chart zooms in — instead of one average number for "real ASR output," it plots all 25 individual test clips as separate dots, to check whether the pattern holds up clip-by-clip and not just on average.
 
-For the guided Colab demonstration, open `capstone_demo.ipynb`. Its setup uses
-`requirements-colab.txt` so Colab's preloaded compiled scientific stack is not
-replaced inside a live kernel.
+![WER vs translation quality](images/wer_vs_translation_quality.png)
 
-## Research question
+**What this picture is showing, in plain terms:** each dot is one audio clip. A dot's position left to right is how many mistakes our ASR model made transcribing that specific clip (its **Word Error Rate** — 0% on the far left means a perfect transcription, 60% on the right means more than half the words were wrong). A dot's position up or down is how good the *English translation* of that same clip turned out (measured by BLEU on the left chart, chrF++ on the right — for both, higher = closer to the correct English answer). If ASR mistakes really do cause bad translations, we'd expect dots to drift downward as we move right (more transcription errors, worse translation) and that's roughly what the orange trend line shows: it slopes down in both charts.
 
-> **Can adapting Hausa→English MT to the real error distribution of a fixed Hausa ASR system improve downstream speech-translation quality?**
+It's not a perfectly clean line — a few clips with lots of ASR errors still translated decently, and vice versa, which is completely normal with real data and only 25 examples. The "**r**" number in the legend (called a *correlation coefficient*) is a standard way statisticians summarize how strongly two things move together in a single number: `r = 0` would mean no relationship at all, `r = -1` would mean a perfectly clean "more errors always means worse translation, every single time" relationship. Our r values (around -0.35 to -0.38) sit in between... a real & visible relationship, just not a solid rule for every individual clip. That's exactly what we'd expect: ASR errors are *a* major cause of bad translations, not the *only* one. See [`analysis/WER_VS_TRANSLATION_QUALITY.md`](analysis/WER_VS_TRANSLATION_QUALITY.md) and the notebook's Section 8 for more detail.
 
-## Why this matters
-
-Cascaded speech translation separates the problem into two reusable pretrained components:
-
-```text
-Hausa audio → Hausa ASR → Hausa text → MT → English
-```
-
-This modular design is data-efficient, but the MT model is normally trained on relatively clean written text while receiving imperfect machine-generated text at inference time. An earlier 25-example pilot in this project showed a large translation drop when gold Hausa was replaced with Whisper-generated Hausa. We therefore treat **ASR-to-MT distribution mismatch** as the main research problem and test whether the translation stage can be adapted to it.
-
-## Final experiment
-
-We hold the upstream Hausa ASR system fixed and compare five MT systems on the same NaijaS2ST examples:
-
-| System | Adaptation |
-|---|---|
-| NLLB | none |
-| AfriNLLB | Africa-specialized MT |
-| Clean LoRA | gold Hausa only |
-| Noisy LoRA | ASR-generated Hausa only |
-| Mixed LoRA | equal clean/noisy exposure |
-
-The three LoRA conditions use the same NLLB-600M base, seed, training population, training schedule, effective batch size, learning rate, and adapter capacity.
-
-### Leakage-controlled data
-
-Training and internal validation are built from NaijaS2ST `train` using alignment-aware connected-component grouping so duplicated bilingual targets cannot cross the split.
-
-| Split | Rows | Alignment clusters | Speakers |
-|---|---:|---:|---:|
-| Train | 12,828 | 4,276 | 60 |
-| Internal validation | 1,425 | 475 | 57 |
-| Official dev | 1,500 | 500 | 6 |
-
-The final internal split has **zero alignment overlap and zero exact bilingual-text overlap**. Official NaijaS2ST `dev` was reserved until final evaluation.
-
-## Main results
-
-All systems below receive the **same fixed Whisper-generated Hausa transcripts** on the 1,500-rendition official dev benchmark.
-
-| System | BLEU ↑ | chrF++ ↑ | SSA-COMET ↑ |
-|---|---:|---:|---:|
-| NLLB | 13.33 | 37.51 | 0.4446 |
-| AfriNLLB | 14.21 | 38.27 | 0.4494 |
-| Clean LoRA | 14.21 | 38.31 | 0.4469 |
-| Noisy LoRA | 15.26 | 39.12 | **0.4663** |
-| Mixed LoRA | **15.36** | **39.36** | 0.4630 |
-
-Using 1,000 paired cluster-bootstrap replicates, both **Noisy** and **Mixed** improve over base NLLB on BLEU, chrF++, and SSA-COMET. The predeclared analysis did not include a direct Noisy-vs-Mixed paired comparison, so their point estimates should not be interpreted as proof that one is statistically superior.
-
-### Error-aware gains vs. NLLB
-
-| System | Δ BLEU | 95% CI | Δ chrF++ | 95% CI |
-|---|---:|---:|---:|---:|
-| AfriNLLB | +0.88 | [+0.23, +1.51] | +0.77 | [+0.32, +1.25] |
-| Clean LoRA | +0.88 | [+0.39, +1.35] | +0.81 | [+0.44, +1.20] |
-| Noisy LoRA | +1.93 | [+1.25, +2.58] | +1.63 | [+1.14, +2.09] |
-| Mixed LoRA | **+2.04** | **[+1.41, +2.70]** | **+1.87** | **[+1.40, +2.33]** |
-
-## ASR remains the dominant bottleneck
-
-A gold-transcript oracle replaces the fixed-ASR Hausa with the reference Hausa while holding MT constant:
-
-| System | ASR Hausa BLEU | Gold Hausa BLEU | ASR Hausa chrF++ | Gold Hausa chrF++ |
-|---|---:|---:|---:|---:|
-| NLLB | 13.33 | 28.80 | 37.51 | 52.14 |
-| AfriNLLB | 14.21 | 31.53 | 38.27 | 54.34 |
-
-The oracle gap is much larger than the gain from MT adaptation. Error-aware MT helps, but **better Hausa ASR remains the highest-leverage direction**.
-
-## Key findings
-
-- **Realistic ASR-noise adaptation improves downstream translation.**
-- **Clean Hausa adaptation alone does not explain the full gain.**
-- **Mixed and Noisy LoRA outperform base NLLB on all three predeclared paired metrics.**
-- **ASR substitutions are more strongly associated with translation degradation than deletions or insertions in the final diagnostics.**
-- **The gold-transcript oracle shows that upstream ASR still dominates the remaining error budget.**
-
-## What the project does not claim
-
-- We do not claim Mixed is statistically superior to Noisy; that direct comparison was not predeclared.
-- Bootstrap intervals do not capture training-seed variability because the LoRA study used one training seed.
-- Official dev has now been observed and is no longer available as an untouched future tuning set.
-- The 256-example direct S2TT pilot is exploratory and not a matched comparison with this final benchmark.
-- The later C1 direct-S2TT development comparison is also not a matched official-dev competitor.
-
-## Earlier project stages
-
-### Hausa ASR
-Whisper-small was fine-tuned on FLEURS Hausa. Held-out WER improved from 50.5% after epoch 1 to **44.7% after epoch 3**.
-
-### Direct S2TT pilot
-A LoRA-adapted Whisper-small direct Hausa-audio→English pilot was trained on 256 NaijaS2ST examples. It produced **0.24 BLEU / 14.39 chrF++** and demonstrated that extreme low-data direct translation was not yet competitive. Because the pilot used a different development protocol, it is treated as exploratory rather than part of the final matched benchmark.
-
-### C1 direct S2TT development integration
-The repository also provides a pinned XLS-R/Wav2Vec2-to-mBART direct runtime in [`direct_c1.py`](direct_c1.py). C1 and the historical direct pilot were evaluated alongside the cascade on the same 1,037-example internal development membership. C1 improved chrF++ over the direct pilot, while the cascade remained strongest; because C1's membership influenced model and decoding selection, this remains development evidence rather than a matched official-dev result. See the [integration guide](docs/C1_INTEGRATION.md) and [verification report](docs/C1_VERIFICATION_REPORT.md).
-
-## Reproducibility
-
-The final experiment documents:
-- immutable dataset/model revisions
-- leakage-controlled membership hashes
-- training and evaluation metadata
-- exact LoRA hyperparameters
-- 1,000 paired cluster-bootstrap replicates
-- preserved empty hypotheses during scoring
-- recorded recovery provenance for the completed GPU run
-
-See:
-- [`docs/GPU_EXPERIMENT_RESULTS.md`](docs/GPU_EXPERIMENT_RESULTS.md)
-- [`docs/FINAL_EXPERIMENTS.md`](docs/FINAL_EXPERIMENTS.md)
-- [`docs/FINAL_RESEARCH_STORY.md`](docs/FINAL_RESEARCH_STORY.md)
-- [`docs/C1_INTEGRATION.md`](docs/C1_INTEGRATION.md)
-- [`docs/C1_VERIFICATION_REPORT.md`](docs/C1_VERIFICATION_REPORT.md)
-- [`capstone_demo.ipynb`](capstone_demo.ipynb)
-- [`poster/FIGURE_CAPTIONS.md`](poster/FIGURE_CAPTIONS.md)
-
-## Generate poster figures
-
-```bash
-python poster/generate_figures.py
-```
-
-Outputs are written to `poster/figures/` as both PNG and SVG.
-
-## Repository guide
-
-- `train.py`, `data_prep.py`, `inference.py` — original Hausa ASR/cascade pipeline
-- `experiments/` — error-aware MT experiments and evaluation
-- `analysis/` — statistical/error analyses
-- `direct_pilot/` — exploratory direct S2TT pilot
-- `direct_c1.py` — pinned C1 direct Hausa-audio→English runtime
-- `artifacts/comparison-v2/` — privacy-safe shared-development C1 comparison aggregates
-- `artifacts/gpu-handoff/` — verified aggregate record of the completed GPU handoff experiment
-- `capstone_demo.ipynb` — output-free, Colab-ready architecture and evidence walkthrough
-- `docs/` — experiment verification and research documentation
-- `poster/` — final poster data, figures, and captions
-
-## Final takeaway
-
-> **Training the MT stage on realistic Hausa ASR noise produces statistically supported improvements, while the much larger gold-transcript oracle gap shows that upstream ASR remains the dominant constraint.**
